@@ -1,0 +1,54 @@
+{
+	"port" : 80,
+	"loglevel" : "silly",
+	"authState" : false,
+	"intervals" : {
+		"ercChecker" : 10000,
+		"enqChecker" : 10000,
+		"cashier" : 10000
+	},
+	"nodeURL" : "http://bit-dev.enecuum.com",
+	"binance" : {
+		"asset" : "ENQ.B-FBA",
+		"apiURL" : "https://testnet-dex.binance.org/"
+	},
+	"eth" : {
+		"RPC" : "https://ropsten.infura.io/v3/<token>",
+		"wsRPC" : "wss://ropsten.infura.io/ws/v3/<token>",
+		"chainId" : 3,
+		"tokenAddr" : "0xf9bfd0c0db2234ef22604c4490ecf777c0964c10",
+		"cashierGasPrice" : 0,
+		"cashierGasPriceLimit" : 250000000000,
+		"cashierGasLimit" : 76786,
+		"minConf" : 1,
+		"minSwapLimit" : 0
+	},
+	"dbhost" : "localhost",
+	"dbname" : "wallet",
+	"dbuser" : "root",
+	"dbpass" : "",
+	"eth_techAddr" : "0x35B27e96D617a59F8b428ebE8F9b95382853636B",
+	"enq_techAddr" : "03e7a9f6e52f21fa0ac093b7f601bb36c4c5f892d124c0ca53be7c49d4b95e4461",
+	"keys" : {
+		"eth" : [
+			{
+				"comment" : "Address from which all ERC-20 transfers will be made",
+				"prv" : "",
+				"pub" : ""
+			}
+		],
+		"enq" : {
+			"comment" : "Address from which all ENQ transfers will be made",
+			"prv" : "",
+			"pub" : ""
+		},
+		"binance" : {
+			"comment" : "Address from which all Binance transfers will be made",
+			"mnemonic" : "",
+			"pubkey" : ""
+		}
+	},
+	"blacklist": [
+
+	]
+}
