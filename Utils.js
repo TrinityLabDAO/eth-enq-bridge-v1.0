@@ -2,11 +2,19 @@ const r = require('jsrsasign');
 const crypto = require('crypto');
 const config = require("./config.json");
 const logger = require('./logger');
+const ContractParser = require('./contractParser').ContractParser;
 const CONTRACT_ABI = require("./abi.json");
+const CONTRACT_ABI_DEPOSIT = require("./abi_deposit.json");
 const web3 = require('web3');
+const abiDecoder = require('abi-decoder');
+
+abiDecoder.addABI(CONTRACT_ABI_DEPOSIT);
+abiDecoder.addABI(CONTRACT_ABI);
+
 //const web3js = new web3(new web3.providers.HttpProvider(config.eth.RPC));
 let web3js = getWeb3Instance();
 const contract = new web3js.eth.Contract(CONTRACT_ABI, config.eth.tokenAddr);
+const contract_deposit = new web3js.eth.Contract(CONTRACT_ABI_DEPOSIT, config.eth.tokenAddr);
 // const provider = web3js.currentProvider;
 // provider.on("connect", function () {
 //     logger.info("Infura Websocket Provider connection established!");
@@ -62,6 +70,12 @@ async function getBalance(addr){
 function getContract(){
     return contract;
 }
+
+function getDeposContract(){
+    return contract_deposit;
+}
+
+
 module.exports = {
     sign : function(prvkey, msg){
         let sig = new r.Signature({"alg": 'SHA256withECDSA'});
@@ -134,7 +148,7 @@ module.exports = {
         }
     },
     PERCENT_FORMAT_SIZE : BigInt(10000),
-    ENQ_TOKEN_NAME : "0000000000000000000000000000000000000000000000000000000000000000",
+    ENQ_TOKEN_NAME : config.enq_native_token_hash,
     swapTypes : {
         erc_enq : 1,
         erc_bep : 2,
@@ -182,18 +196,37 @@ module.exports = {
     // This request doesn't get tx status.
     getTransactionExtInfo : async function(txHash){
         const trx = await web3js.eth.getTransaction(txHash);
+        trx.method = abiDecoder.decodeMethod(trx.input);
+        let contract = new web3js.eth.Contract(CONTRACT_ABI,  trx.method.params[0].value);
+
+
         trx.ext = {
             method : trx.input.substring(0, 10),
             to : ('0x' + trx.input.substring(34, 74)),
             amount : BigInt(web3js.utils.toBN('0x' + trx.input.substring(74, 138)).toString()),
             linkedAddr : trx.input.substring(138, trx.input.length)
         };
+        trx.token ={
+            eth_hash : trx.method.params[0].value,
+            name : await contract.methods.name().call(),
+            symbol : await contract.methods.symbol().call(),
+            decimals : await contract.methods.decimals().call(),
+            totalSupply : await contract.methods.totalSupply().call()
+        };
         return trx;
     },
     // This request returns null while tx is in pending.
     getTransactionStatus : async function(txHash) {
         try {
-            let trx = await web3js.eth.getTransactionReceipt(txHash);
+            let tx = await web3js.eth.getTransaction(txHash);
+
+            let method = abiDecoder.decodeMethod(tx.input)
+
+            let trx = await web3js.eth.getTransactionReceipt(txHash,
+                function (e, receipt) {
+                    const decodedLogs = abiDecoder.decodeLogs(receipt.logs);
+                });
+
             // Tx probably in pending
             if(!trx)
                 return;
@@ -244,6 +277,7 @@ module.exports = {
     },
     getBalance : getBalance,
     getContract : getContract,
+    getDeposContract : getDeposContract,
     createTokenTransaction : async function(toAddress, amount, data){
         return new Promise(async function(resolve, reject) {
             try {
@@ -322,5 +356,65 @@ module.exports = {
         return new Promise(function(resolve, reject){
             setTimeout(() => resolve(), ms)
         });
+    },
+    CreateToken(key, token_data){
+        let txdata = {
+            type : "create_token",
+            parameters : {
+                fee_type : 1,
+                fee_value : 0n,
+                fee_min : 0n,
+                decimals : BigInt(token_data.decimals),
+                ticker : token_data.symbol,
+                name : token_data.name,
+                total_supply : BigInt(token_data.totalSupply),
+                reissuable : 1
+            }
+        };
+        let parser = new ContractParser(config);
+        let before = parser.dataFromObject(txdata);
+        let amount = BigInt(config.contract_pricelist[txdata.type] + config.enq_native_fee);
+        let tx = {
+            amount : amount,
+            from : key.pub,
+            data : before,
+            nonce : Math.floor(Math.random() * 1e10),
+            ticker : config.enq_native_token_hash,
+            to : "029dd222eeddd5c3340e8d46ae0a22e2c8e301bfee4903bcf8c899766c8ceb3a7d"
+        };
+
+        let hash = this.hash_tx_fields(tx);
+        tx.sign = this.ecdsa_sign(key.prv, hash);
+        //let res = await enecuum.sendTransaction(tx);
+        //console.log(res);
+        return tx;
+    },
+    hash_tx_fields : function(tx){
+        if (!tx)
+            return undefined;
+        let model = ['amount','data','from','nonce','ticker','to'];
+        let str;
+        try{
+            str = model.map(v => crypto.createHash('sha256').update(tx[v].toString().toLowerCase()).digest('hex')).join("");
+        }
+        catch(e){
+            if (e instanceof TypeError) {
+                console.warn("Old tx format, skip new fields...");
+                return undefined;
+            }
+        }
+        return crypto.createHash('sha256').update(str).digest('hex');
+    },
+    ecdsa_sign : function(skey, msg){
+        let sig = new r.Signature({ "alg": 'SHA256withECDSA' });
+        try {
+            sig.init({ d: skey, curve: 'secp256k1' });
+            sig.updateString(msg);
+            return sig.sign();
+        }
+        catch(err){
+            console.error("Signing error: ", err);
+            return null;
+        }
     }
 };

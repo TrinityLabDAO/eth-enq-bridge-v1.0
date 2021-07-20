@@ -8,6 +8,15 @@ module.exports = {
     getBalance : async function(pubkey){
         return (await Utils.apiRequest.get(config.nodeURL + '/api/v1/balance', {id : pubkey})).amount;
     },
+    getTokenBalance : async function(pubkey, token){
+        let data = (await Utils.apiRequest.get(config.nodeURL + '/api/v1/balance_all', {id : pubkey}));
+        let result = 0;
+        data.forEach(item => {
+            if(item.token === token)
+                result = item.amount;
+        });
+        return result
+    },
     getTokenInfo : async function(token = Utils.ENQ_TOKEN_NAME){
         return (await Utils.apiRequest.get(config.nodeURL + '/api/v1/token_info', {hash : token}));
     },

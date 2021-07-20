@@ -33,14 +33,14 @@ class TxStatus {
         });
     };
     async start(status){
-        this.ercInt = setInterval(async () => { this.checkERC(); }, this.ercInterval);
+        this.ercInt = setInterval(async () => { this.check_bridge_ERC(); }, this.ercInterval);
         this.enqInt = setInterval(async () => { this.checkENQ(); }, this.enqInterval);
         //this.bepInt = setInterval(async () => { this.checkBEP(); }, this.bepInterval);
 
         while(this.working){
             try{
-                await this.cashierERC();
-                await this.cashierENQ();
+                await this.cashier_bridge_ERC();
+                await this.cashier_bridge_ENQ();
             }
             catch(e){
                 logger.error(e)
@@ -214,6 +214,54 @@ class TxStatus {
         }
     }
 
+
+    /**  Watch all Ethereum ERC-20 transactions. Make requests via RPC */
+    async check_bridge_ERC(){
+        let pending = await this.db.get_pending_erc();
+        if(pending.length){
+            await Promise.all(pending.map(async (rec) => {
+                try {
+                    let tx = rec.hash;
+                    let info = await Utils.getTransactionStatus(tx);
+
+                    // Check confirmations
+                    if(!info){
+                        logger.info(tx + ' still in pending');
+                        return;
+                    }
+                    if (info.status) {
+                        // Check non-zero amount, contract address and "removed" status
+                        if((Utils.hexToBigint(info.data.logs[0].data) > 0)
+                            && (info.data.logs[0].address.toLowerCase() !== undefined)
+                            && (!info.data.logs[0].amount > 0)){
+                            logger.info(`${tx} has been confirmed ${info.confirmations} times`);
+                            // Tx in blochchain, check status
+                            if(info.confirmations >= this.config.eth.minConf) {
+                                logger.info(`ERC TX ${tx} status OK`);
+                                // TODO: check db response
+                                let res = await this.db.update_statuses_erc([[tx, 3]]);
+                            }
+                        }
+                        else{
+                            logger.warn(`${tx} bad data, rejecting`);
+                            logger.warn(info);
+                            let res = this.db.update_statuses_erc([[tx, 2]]);
+                        }
+                    }
+                    // Failed tx - set bad status in DB
+                    else{
+                        logger.warn(`${tx} status FAILED`);
+                        let res = this.db.update_statuses_erc([[tx, 2]]);
+                    }
+                    await this.db.update_swap_status(tx);
+                }
+                catch (err) {
+                    logger.error(err);
+                }
+            }));
+        }
+    }
+
     /** BEP2 -> ENQ
      *  Get succesful BEP2 transactions from DB and transfer tokens */
     async cashierBEP(){
@@ -359,10 +407,214 @@ class TxStatus {
         }
     }
 
+    /** Bridge lock ERC20 in smart-contract -> Create Token in Enecuum network
+     *
+     *   */
+    async cashier_bridge_ERC() {
+        let inputs = await this.db.get_success_ercs();
+        for (let i = 0; i < inputs.length; i++) {
+            try {
+                let rec = inputs[i];
+                // Additional check
+                let info = await Utils.getTransactionExtInfo(rec.in_hash);
+
+                if (info.to.toLowerCase() === this.config.eth_techAddr.toLowerCase()) {
+
+                    logger.info(`ETH hash ${rec.in_hash} for ${rec.pubkey} OK, transfer...`);
+                    if (rec.type === Utils.swapTypes.erc_enq) {
+                        await this.db.set_hold(rec.recid, 1);
+                        let keys = this.config.keys.enq;
+                        let token_hash = (await this.db.get_enq_bridge_token(info.token.eth_hash))[0];
+
+                        if (token_hash === undefined) {
+                            //Create token
+                            let create_tx = await Utils.CreateToken(keys, info.token);
+
+                            let create_res = await enecuum.sendTransaction(create_tx);
+                            if (create_res.err === 0) {
+                                info.token.enq_hash = create_res.result[0].hash;
+                                await this.db.put_bridge_token(info.token);
+                            }
+                        } else {
+                            //Mint - Send
+                            token_hash = token_hash.enq_hash;
+
+                            let balance = await enecuum.getTokenBalance(keys.pub, token_hash);
+                            let amount = BigInt(info.method.params.find(param => {if(param.name === "amount") return param}).value);
+                            if (BigInt(balance) < amount) {
+                                logger.warn('Out of ENQ');
+                                return null;
+                            }
+                            //await this.db.set_hold(rec.recid, 1);
+                            // Hold tx if no data field
+                            if (info.ext.linkedAddr !== '') {
+                                let tx = {
+                                    amount: amount,
+                                    data: '',
+                                    from: keys.pub,
+                                    nonce: Math.floor(Math.random() * 1e15),
+                                    ticker: token_hash,
+                                    to: rec.out_addr
+                                };
+                                let signHash = Utils.hashTx(tx);
+                                tx.sign = Utils.sign(keys.prv, signHash);
+                                let txhash = Utils.hashSignedTx(tx);
+                                let dbRes = await this.db.put_history_out({
+                                    out_hash: txhash,
+                                    in_hash: rec.in_hash,
+                                    amount: amount
+                                });
+                                let res = await enecuum.sendTransaction(tx);
+                                if (!res) {
+                                    // Add to sender queue
+                                    logger.warn(`no response, save ${txhash} in pending`);
+                                    tx.hash = txhash;
+                                    tx.recid = rec.recid;
+                                    let senderRes = await this.sender.add(tx);
+                                    //return {result : senderRes};
+                                } else {
+                                    res = res.result[0];
+                                    if (res.hasOwnProperty("status")) {
+                                        let hash = txhash;
+                                        if (res.hasOwnProperty("hash")) {
+                                            hash = res.hash;
+                                        }
+                                        await this.db.put_enq_tx([[hash, amount, res.status]]);
+                                        if (res.status === 2) {
+                                            logger.warn(`Status 2 for ENQ tx ${txhash}`);
+                                            await this.db.update_swap_status(hash);
+                                        } else {
+                                            logger.info(`ENQ TX ${hash} for ${rec.pubkey} was sent to node.`);
+                                        }
+                                        await this.db.set_hold(rec.recid, 0);
+                                    }
+                                }
+                            } else {
+                                logger.warn(`ETH hash ${rec.in_hash} for ${rec.pubkey} without data`);
+                            }
+                        }
+                    } else if (rec.type === Utils.swapTypes.erc_bep) {
+                        await this.db.set_hold(rec.recid, 1);
+                        // Binance use float value instead of decimals
+                        let res = await this.binance.transfer(rec.out_addr, info.ext.amount / 1e10, rec.in_hash);
+                        console.log(res);
+
+                        if (res.status === 200 && res.result[0].ok === true) {
+                            await this.db.put_bep_tx([[res.result[0].hash, info.ext.amount, (res.status === 200 ? 0 : 2)]]);
+                            logger.info(`BEP TX ${res.result[0].hash} for ${rec.pubkey} was sent to node.`);
+                            let dbRes = await this.db.put_history_out({
+                                out_hash: res.result[0].hash,
+                                in_hash: rec.in_hash,
+                                amount: info.ext.amount
+                            });
+                            await this.db.set_hold(rec.recid, 0);
+                            //await this.db.swap.erc_bep.set_hold('hash_erc', rec.hash_erc, 0);
+                        }
+                    } else {
+                        logger.warn('Incorrect swap type, swap will be in hold')
+                        // error
+                    }
+                }
+                // Tx substitution detected
+                else {
+                    logger.warn(`Tx substitution detected: ${rec.in_hash} from ${rec.pubkey}`);
+                    let res = await this.db.update_statuses_erc([[rec.in_hash, 2]]);
+                    //await this.db.update_swap_status_byERC({hash_erc: rec.hash_erc});
+                    await this.db.set_hold(rec.recid, 0);
+                }
+            } catch (err) {
+                logger.error(err);
+            }
+        }
+    }
+
     /** ENQ -> ERC-20
      *  ENQ -> BEP2
      *  Get succesful ENQ transactions from DB and transfer tokens */
     async cashierENQ(){
+        let inputs = await this.db.get_success_enqs();
+        for(let i = 0; i < inputs.length; i++){
+            try {
+                let rec = inputs[i];
+                // Additional check
+                // TODO: Can be removed
+                let info = await Utils.apiRequest.get(this.config.nodeURL + '/api/v1/tx', {hash : rec.in_hash});
+                if (info.to.toLowerCase() === this.config.enq_techAddr.toLowerCase()
+                    && info.from.toLowerCase() === rec.in_addr.toLowerCase()
+                    && info.status === 3) {
+
+                    logger.info(`ENQ hash ${rec.in_hash} for ${rec.pubkey} OK, transfer...`);
+                    if(rec.type === Utils.swapTypes.enq_erc){
+                        try {
+                            // Hold swap
+                            await this.db.set_hold(rec.recid, 1);
+                            // Calc erc hash locally
+                            let tx = await Utils.createTokenTransaction(rec.out_addr, info.amount, rec.in_hash);
+                            let hash_erc = tx.hash;
+
+
+                            logger.info(`Attempting to send ${info.amount} to ${rec.out_addr}`);
+
+                            let resp = await Utils.sendTokenTransaction(tx.raw, info.amount);
+                            console.log(resp);
+                            if(resp){
+                                logger.info(`TX ${resp} for ${rec.in_addr} was sent to node.`);
+                                // Change inwork status to 0
+                                await this.db.put_erc_tx([[hash_erc, info.amount, 0]]);
+                                let dbRes = await this.db.put_history_out({
+                                    in_hash: rec.in_hash,
+                                    out_hash: hash_erc,
+                                    amount: info.amount
+                                });
+                                await this.db.set_hold(rec.recid, 0);
+                            }
+                        }
+                        catch (err) {
+                            logger.error(err.stack)
+                        }
+                    }
+                    else if(rec.type === Utils.swapTypes.enq_bep){
+                        await this.db.set_hold(rec.recid, 1);
+                        logger.info(`Attempting to send ${info.amount} to ${rec.out_addr}`);
+                        // Binance use float value instead of decimals
+                        let res = await this.binance.transfer(rec.out_addr, info.amount / 1e10, rec.in_hash);
+                        console.log(res);
+
+                        if (res.status === 200 && res.result[0].ok === true) {
+                            await this.db.put_bep_tx([[res.result[0].hash, info.amount, (res.status === 200 ? 0 : 2)]]);
+                            logger.info(`BEP TX ${res.result[0].hash} for ${rec.pubkey} was sent to node.`);
+                            let dbRes = await this.db.put_history_out({
+                                out_hash: res.result[0].hash,
+                                in_hash: rec.in_hash,
+                                amount: info.amount
+                            });
+                            await this.db.set_hold(rec.recid, 0);
+                            //await this.db.swap.erc_bep.set_hold('hash_erc', rec.hash_erc, 0);
+                        }
+                    }
+                    else {
+                        logger.warn('Incorrect swap type, swap will be in hold')
+                        // error
+                    }
+
+                }
+                // Tx substitution detected
+                else {
+                    logger.warn(`Tx substitution detected: ${rec.in_hash} from ${rec.pubkey}`);
+                    let res = await this.db.update_statuses_enq([[rec.in_hash, 2]]);
+                    //await this.db.update_swap_status_byENQ({hash_enq: rec.hash_enq});
+                }
+            }
+            catch (err) {
+                logger.error(err);
+            }
+        }
+    }
+
+    /** Bridge ENQ -> unlock ERC-20 in smart-contract
+     *
+     *  Get succesful ENQ transactions from DB and unlock tokens in smart-contract */
+    async cashier_bridge_ENQ(){
         let inputs = await this.db.get_success_enqs();
         for(let i = 0; i < inputs.length; i++){
             try {

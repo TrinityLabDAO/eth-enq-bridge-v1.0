@@ -6,9 +6,9 @@ let bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.set('views', '../sitev2');
+//app.set('views', '../sitev2');
 app.engine('html', require('ejs').renderFile);
-app.set('view engine', 'ejs');
+//app.set('view engine', 'ejs');
 //app.use(express.static('../sitev2'));
 
 const logger = require('./logger');
@@ -18,12 +18,12 @@ const Service = require("./Service").Service;
 
 let txStatus = new TxStatus(config);
 let service = new Service();
-let staticify = require('staticify')('../sitev2');
+/*let staticify = require('staticify')('../sitev2');
 
 app.use(staticify.middleware);
 app.locals = {
     getVersionedPath: staticify.getVersionedPath
-};
+};*/
 app.use(function (req, res, next) {
     logger.debug(`Request ${req.headers['x-forwarded-for']} | ${req.connection.remoteAddress} ${req.method} \t ${req.url}`);
 	next();

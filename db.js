@@ -151,5 +151,14 @@ class DB {
     async put_account(pubkey, eth_addr){
         return await this.request(mysql.format('INSERT INTO accounts VALUES ?', [{pkey : pubkey, eth_addr : eth_addr}]));
     }
+
+    async put_bridge_token(data){
+        return await this.request(mysql.format('INSERT IGNORE INTO bridge_tokens SET ?', [data]));
+    }
+
+    async get_enq_bridge_token(eth_hash){
+        return await this.request(mysql.format('Select enq_hash FROM bridge_tokens WHERE eth_hash = ?', [eth_hash]));
+    }
+
 }
 module.exports.DB = DB;
