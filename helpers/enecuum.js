@@ -35,6 +35,9 @@ module.exports = {
     getTransaction : async function(hash){
         return await Utils.apiRequest.get(config.nodeURL + '/api/v1/tx', {hash : hash});
     },
+    getTokenInfo : async function(hash){
+        return await Utils.apiRequest.get(config.nodeURL + '/api/v1/token_info', {hash : hash});
+    }
     // getBalance : async function(){
     //
     // },

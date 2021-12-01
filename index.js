@@ -1,3 +1,4 @@
+let Utils = require('./Utils.js');
 let express = require('express');
 let app = express();
 let cors = require('cors');
@@ -53,10 +54,10 @@ let validate = async function(req, res, next) {
 	let hash_regexp = /^(0x)?[0-9a-fA-F]{64}$/i;
     let enq_regexp = /^(02|03)[0-9a-fA-F]{64}$/i;
 	let data = req.body;
-
+/*
 	if(!enq_regexp.test(data.pubkey))
         return res.status(400).send({result: false, msg : "pubkey format error"});
-
+*/
 	if(!data.hasOwnProperty('hash') && !data.hasOwnProperty('tx'))
         return res.status(400).send({result: false, msg : "Data error"});
     // TODO: eth_addr only with tx
@@ -191,7 +192,7 @@ app.post('/swap/enq/erc',
     async function (req, res) {
         let body = req.body;
         logger.info(`Swap ENQ->ERC for pubkey ${req.body.pubkey}`);
-        let result = await service.swapENQ_ERC(body);
+        let result = await service.bridgeERC_ENQ(body);
         return res.status(200).send(result);
 });
 
@@ -247,3 +248,8 @@ app.listen(config.port, function () {
 app.use(function(req, res, next){
     res.status(404).render('404.html', {title: "Sorry, page not found"});
 });
+
+let token = '0xf6958cf3127e62d3eb26c79f4f45d3f3b2ccded4';
+let address = '0x78B77d5d7A1DFd9a2DA3EE91AFbc205B7eDD1D4d';
+let amount = 100000;
+let sign = Utils.sign_msg(token, address, amount, config.keys.enq.prv);

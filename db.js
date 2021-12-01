@@ -160,5 +160,8 @@ class DB {
         return await this.request(mysql.format('Select enq_hash FROM bridge_tokens WHERE eth_hash = ?', [eth_hash]));
     }
 
+    async get_eth_bridge_token(enq_hash){
+        return await this.request(mysql.format('Select eth_hash FROM bridge_tokens WHERE enq_hash = ?', [enq_hash]));
+    }
 }
 module.exports.DB = DB;

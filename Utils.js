@@ -88,6 +88,26 @@ module.exports = {
             return reject(new Error('api error'))
         });
     },
+    sign_msg : function(token, address, amount, prv) {
+        let local_prv = '0x'+prv;
+        let test1 = web3js.utils.soliditySha3("TEST");
+        let test1_hash = web3js.utils.soliditySha3("\x19Ethereum Signed Message:\n32" + test1);
+        let test1_sign = web3js.eth.accounts.sign(test1, local_prv);
+
+        let test2 = "0xTEST";
+        let test2_hash = web3js.utils.soliditySha3("\x19Ethereum Signed Message:\n" + test2.length + test2);
+        let test2_sign = web3js.eth.accounts.sign(test2, local_prv);
+
+        let test3 = token;
+        let test3_hash = web3js.utils.soliditySha3("\x19Ethereum Signed Message:\n" + test3.length + test3);
+        let test3_sign = web3js.eth.accounts.sign(test3, local_prv);
+
+        let current_address = web3js.eth.accounts.privateKeyToAccount(prv);
+        let invoice =  web3js.utils.soliditySha3(token, address, amount);
+        let hash = web3js.utils.soliditySha3("\x19Ethereum Signed Message:\n32" , {t:"bytes32", v:  invoice});
+        let sign = web3js.eth.accounts.sign(invoice, local_prv);
+        return sign;
+    },
     verify : function(cpkey, msg, signedMsg){
         let sig = new r.Signature({ "alg": 'SHA256withECDSA' });
         try{
@@ -357,30 +377,32 @@ module.exports = {
             setTimeout(() => resolve(), ms)
         });
     },
-    CreateToken(key, token_data){
+    CreateToken(key, token_data, native_token_info){
+        let ticker = ("E" + token_data.symbol.toUpperCase()).replace(/[^A-Z]/g,'').substring(0,6);
+        let name = ("Wrapped/" + token_data.name).substring(0,40);
+
         let txdata = {
             type : "create_token",
             parameters : {
-                fee_type : 1,
-                fee_value : 0n,
-                fee_min : 0n,
-                decimals : BigInt(token_data.decimals),
-                ticker : token_data.symbol,
-                name : token_data.name,
+                fee_type : 2,
+                fee_value : BigInt(native_token_info.fee_value),
+                decimals : BigInt(token_data.enq_decimals),
+                ticker : ticker,
+                name : name,
                 total_supply : BigInt(token_data.totalSupply),
                 reissuable : 1
             }
         };
         let parser = new ContractParser(config);
         let before = parser.dataFromObject(txdata);
-        let amount = BigInt(config.contract_pricelist[txdata.type] + config.enq_native_fee);
+        let amount = BigInt(config.contract_pricelist[txdata.type] + native_token_info.fee_value);
         let tx = {
             amount : amount,
             from : key.pub,
             data : before,
             nonce : Math.floor(Math.random() * 1e10),
             ticker : config.enq_native_token_hash,
-            to : "029dd222eeddd5c3340e8d46ae0a22e2c8e301bfee4903bcf8c899766c8ceb3a7d"
+            to : native_token_info.owner
         };
 
         let hash = this.hash_tx_fields(tx);

@@ -64,6 +64,39 @@ class Service{
             return false;
         }
     }
+
+    async bridgeERC_ENQ(body) {
+        try {
+
+            let info = await Utils.apiRequest.get(config.nodeURL + '/api/v1/tx', {hash :body.hash});
+
+            //let info = await Utils.getTransactionExtInfo(body.hash);
+
+            /**
+             * Check:
+             * - contract check
+             * - techAddress check
+             * TODO: validate linkedAddr
+             */
+            let eth_token = (await this.db.get_eth_bridge_token(info.token_hash))[0].eth_hash;
+            let sign = Utils.sign_msg(eth_token, info.data, info.amount, config.keys.enq.prv);
+            let unlock = {
+                token : eth_token,
+                recipient : info.data,
+                amount : info.amount,
+                sign : sign.signature,
+            };
+
+           //let res1 = await this.db.put_erc_tx([[body.hash, body.amount, 0]]);
+            //let res2 = await this.db.put_history(db_data);
+            return unlock;
+        }
+        catch (err) {
+            logger.error(err.stack);
+            return false;
+        }
+    }
+
     async swapERC_BEP(body){
         try {
             let info = await Utils.getTransactionExtInfo(body.hash);
