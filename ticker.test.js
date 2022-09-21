@@ -84,7 +84,7 @@ describe("ecdsa signature", function() {
         let token = '0xf6958cf3127e62d3eb26c79f4f45d3f3b2ccded4';
         let address = '0x78B77d5d7A1DFd9a2DA3EE91AFbc205B7eDD1D4d';
         let amount = 1000;
-        let repiter = 3;
+        let repiter = 3000;
         let print_count = prvs.length;
         let owner = [];
         let s = [];

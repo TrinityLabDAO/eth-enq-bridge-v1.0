@@ -7,6 +7,7 @@ const enecuum = require("./helpers/enecuum");
 const Sender = require("./helpers/Sender").Sender;
 const sender = new Sender(new DB({
     host: config.dbhost,
+    port: config.dbport,
     user: config.dbuser,
     database: config.dbname,
     password: config.dbpass.toString()
@@ -15,6 +16,7 @@ class Service{
     constructor(){
         this.db = new DB({
             host: config.dbhost,
+            port: config.dbport,
             user: config.dbuser,
             database: config.dbname,
             password: config.dbpass.toString()
@@ -33,29 +35,26 @@ class Service{
         let data = await this.db.get_history(pubkey);
         return data;
     }
-    async swapERC_ENQ(body){
+    async bridgeERC_ENQ(body){
         try {
-            //let info = await Utils.getTransactionExtInfo(body.hash);
-            /**
-             * Check:
-             * - contract check
-             * - techAddress check
-             * TODO: validate linkedAddr
-             */
+            let txd = await Utils.getTransactionDecodeInfo(body.hash);
+
+            if(txd.method.name !== "lock")
+                return false;
 
             let db_data = {
-                pubkey : body.pubkey,
+                pubkey : txd.method.params[2].value,
                 in_hash : body.hash,
-                in_addr : body.eth_addr,
-                out_addr : body.pubkey,
-                amount : body.amount,
+                in_addr : txd.from,
+                out_addr : txd.method.params[2].value,
+                amount : txd.method.params[1].value,
                 status : 0,
                 date : Math.floor(new Date() / 1000),
                 type : Utils.swapTypes.erc_enq,
                 hold : 0
             };
 
-            let res1 = await this.db.put_erc_tx([[body.hash, body.amount, 0]]);
+            let res1 = await this.db.put_erc_tx([[body.hash, txd.method.params[1].value, 0]]);
             let res2 = await this.db.put_history(db_data);
             return true;
         }
@@ -65,7 +64,7 @@ class Service{
         }
     }
 
-    async bridgeERC_ENQ(body) {
+    async bridgeENQ_ERC(body) {
         try {
 
             let info = await Utils.apiRequest.get(config.nodeURL + '/api/v1/tx', {hash :body.hash});

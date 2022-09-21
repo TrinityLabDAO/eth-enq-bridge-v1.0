@@ -1,13 +1,13 @@
--- MySQL dump 10.13  Distrib 8.0.17, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 5.7.24, for Win64 (x86_64)
 --
--- Host: 192.168.99.100    Database: wallet
+-- Host: localhost    Database: wallet
 -- ------------------------------------------------------
--- Server version	5.7.25
+-- Server version	5.7.24
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8 */;
+/*!40101 SET NAMES utf8 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -21,7 +21,7 @@
 
 DROP TABLE IF EXISTS `accounts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `accounts` (
   `rec_id` int(11) NOT NULL,
   `pkey` varchar(130) NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE `accounts` (
 
 DROP TABLE IF EXISTS `bep_txs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `bep_txs` (
   `hash` varchar(64) NOT NULL,
   `amount` bigint(20) DEFAULT NULL,
@@ -46,31 +46,12 @@ CREATE TABLE `bep_txs` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `bridge_tokens`
---
-
-DROP TABLE IF EXISTS `bridge_tokens`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `bridge_tokens` (
-  `eth_hash` varchar(66) NOT NULL,
-  `name` varchar(45) DEFAULT NULL,
-  `symbol` varchar(45) DEFAULT NULL,
-  `decimals` int(11) DEFAULT NULL,
-  `totalSupply` bigint(20) DEFAULT NULL,
-  `enq_hash` varchar(66) DEFAULT NULL,
-  `enq_mint_amount` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`eth_hash`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `config`
 --
 
 DROP TABLE IF EXISTS `config`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `config` (
   `key` varchar(66) NOT NULL,
   `value` varchar(100) DEFAULT NULL,
@@ -84,7 +65,7 @@ CREATE TABLE `config` (
 
 DROP TABLE IF EXISTS `enq_txs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `enq_txs` (
   `hash` varchar(64) NOT NULL,
   `amount` bigint(20) DEFAULT NULL,
@@ -99,7 +80,7 @@ CREATE TABLE `enq_txs` (
 
 DROP TABLE IF EXISTS `erc_txs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `erc_txs` (
   `hash` varchar(66) NOT NULL,
   `amount` bigint(20) DEFAULT NULL,
@@ -114,7 +95,7 @@ CREATE TABLE `erc_txs` (
 
 DROP TABLE IF EXISTS `nodata_txs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `nodata_txs` (
   `hash` varchar(66) NOT NULL,
   PRIMARY KEY (`hash`)
@@ -127,7 +108,7 @@ CREATE TABLE `nodata_txs` (
 
 DROP TABLE IF EXISTS `pending_enq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `pending_enq` (
   `recid` int(11) NOT NULL,
   `amount` bigint(20) DEFAULT NULL,
@@ -147,7 +128,7 @@ CREATE TABLE `pending_enq` (
 
 DROP TABLE IF EXISTS `swaphistory`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `swaphistory` (
   `recid` int(11) NOT NULL AUTO_INCREMENT,
   `pubkey` varchar(66) DEFAULT NULL,
@@ -163,7 +144,7 @@ CREATE TABLE `swaphistory` (
   PRIMARY KEY (`recid`),
   UNIQUE KEY `in_hash_UNIQUE` (`in_hash`),
   UNIQUE KEY `out_hash_UNIQUE` (`out_hash`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -172,7 +153,7 @@ CREATE TABLE `swaphistory` (
 
 DROP TABLE IF EXISTS `tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tokens` (
   `pubkey` varchar(130) NOT NULL,
   `token` varchar(32) NOT NULL,
@@ -181,10 +162,6 @@ CREATE TABLE `tokens` (
   PRIMARY KEY (`token`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping routines for database 'wallet'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -195,4 +172,4 @@ CREATE TABLE `tokens` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-08-23 16:22:07
+-- Dump completed on 2019-08-14 14:33:13

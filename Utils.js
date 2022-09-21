@@ -3,13 +3,15 @@ const crypto = require('crypto');
 const config = require("./config.json");
 const logger = require('./logger');
 const ContractParser = require('./contractParser').ContractParser;
-const CONTRACT_ABI = require("./abi.json");
+const ERC20_ABI = require("./abi_erc20.json");
+const CONTRACT_ABI = require("./abi_enex.json");
 const CONTRACT_ABI_DEPOSIT = require("./abi_deposit.json");
 const web3 = require('web3');
 const abiDecoder = require('abi-decoder');
 
 abiDecoder.addABI(CONTRACT_ABI_DEPOSIT);
 abiDecoder.addABI(CONTRACT_ABI);
+abiDecoder.addABI(ERC20_ABI);
 
 //const web3js = new web3(new web3.providers.HttpProvider(config.eth.RPC));
 let web3js = getWeb3Instance();
@@ -213,16 +215,21 @@ module.exports = {
         // return this.apiRequest.get('swaplimit');
         return config.eth.minSwapLimit;
     },
+    getTransactionDecodeInfo : async function(txHash){
+        const trx = await web3js.eth.getTransaction(txHash);
+        trx.method = abiDecoder.decodeMethod(trx.input);
+        return trx;
+    },
     // This request doesn't get tx status.
     getTransactionExtInfo : async function(txHash){
         const trx = await web3js.eth.getTransaction(txHash);
         trx.method = abiDecoder.decodeMethod(trx.input);
-        let contract = new web3js.eth.Contract(CONTRACT_ABI,  trx.method.params[0].value);
 
+        let contract = new web3js.eth.Contract(ERC20_ABI,  trx.method.params[0].value);
 
         trx.ext = {
             method : trx.input.substring(0, 10),
-            to : ('0x' + trx.input.substring(34, 74)),
+            to : trx.method.params[2].value,// ('0x' + trx.input.substring(34, 74)),
             amount : BigInt(web3js.utils.toBN('0x' + trx.input.substring(74, 138)).toString()),
             linkedAddr : trx.input.substring(138, trx.input.length)
         };
@@ -377,32 +384,30 @@ module.exports = {
             setTimeout(() => resolve(), ms)
         });
     },
-    CreateToken(key, token_data, native_token_info){
-        let ticker = ("E" + token_data.symbol.toUpperCase()).replace(/[^A-Z]/g,'').substring(0,6);
-        let name = ("Wrapped/" + token_data.name).substring(0,40);
-
+    CreateToken(key, token_data){
         let txdata = {
             type : "create_token",
             parameters : {
-                fee_type : 2,
-                fee_value : BigInt(native_token_info.fee_value),
-                decimals : BigInt(token_data.enq_decimals),
-                ticker : ticker,
-                name : name,
+                fee_type : 1,
+                fee_value : 0n,
+                fee_min : 0n,
+                decimals : BigInt(token_data.decimals),
+                ticker : token_data.symbol,
+                name : token_data.name,
                 total_supply : BigInt(token_data.totalSupply),
                 reissuable : 1
             }
         };
         let parser = new ContractParser(config);
         let before = parser.dataFromObject(txdata);
-        let amount = BigInt(config.contract_pricelist[txdata.type] + native_token_info.fee_value);
+        let amount = BigInt(config.contract_pricelist[txdata.type] + config.enq_native_fee);
         let tx = {
             amount : amount,
             from : key.pub,
             data : before,
             nonce : Math.floor(Math.random() * 1e10),
             ticker : config.enq_native_token_hash,
-            to : native_token_info.owner
+            to : "029dd222eeddd5c3340e8d46ae0a22e2c8e301bfee4903bcf8c899766c8ceb3a7d"
         };
 
         let hash = this.hash_tx_fields(tx);

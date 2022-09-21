@@ -1,8 +1,6 @@
 let Utils = require('./Utils.js');
 let express = require('express');
 let app = express();
-let cors = require('cors');
-app.use(cors());
 let bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -19,12 +17,7 @@ const Service = require("./Service").Service;
 
 let txStatus = new TxStatus(config);
 let service = new Service();
-/*let staticify = require('staticify')('../sitev2');
 
-app.use(staticify.middleware);
-app.locals = {
-    getVersionedPath: staticify.getVersionedPath
-};*/
 app.use(function (req, res, next) {
     logger.debug(`Request ${req.headers['x-forwarded-for']} | ${req.connection.remoteAddress} ${req.method} \t ${req.url}`);
 	next();
@@ -83,53 +76,6 @@ let validate = async function(req, res, next) {
 	}
 };
 
-app.get('/', function(req, res){
-	return res.render("index.ejs");
-});
-
-app.post('/login', async function (req, res) {
-    if(config.blacklist.includes(req.body.pubkey.toLowerCase())){
-        let msg = `compromised wallet login: ${req.body.pubkey}, ${req.headers['x-forwarded-for']} | ${req.connection.remoteAddress} ${ JSON.stringify(req.headers)}`;
-        logger.warn(msg);
-    }
-    let token = await service.login(req.body.pubkey, req.headers['user-agent']);
-    if(!token)
-        return res.send({result : false});
-    logger.debug(`Set token ${token} for pubkey ${req.body.pubkey}`);
-    return res.send({result : true, token : token});
-});
-
-app.get('/login', function(req, res) {
-    return res.render("index.ejs");
-});
-
-app.post('/logout', async function(req, res) {
-    let token = req.headers['x-session-token'];
-    if(!token)
-        return res.status(401).send({result: false});
-    logger.debug(`Logout ${token}`);
-    let result = await service.logout(token);
-    return res.status(200).send({result: result});
-});
-
-app.get('/logout', function(req, res) {
-    return res.render("index.ejs");
-});
-
-/** Token faucet
-app.get('/dev/faucet', async function(req, res) {
-	try{
-        logger.debug(`Faucet request for addr ${req.query.addr}`);
-		let hash = await Utils.sendTokenTransaction(req.query.addr, 50 * 1e10);
-        logger.debug(`Hash: ${hash}`);
-		return res.send({result : true, hash : hash});
-	}
-	catch (err) {
-		logger.error(err);
-		return res.send({result : false, err: 1});
-	}
-});
-*/
 app.get('/dev/compress', function(req, res) {
     const key = service.compressKey(key);
     return res.send(key);
@@ -138,19 +84,6 @@ app.get('/dev/compress', function(req, res) {
 app.get('/dev/uncompress', function(req, res) {
     const key = service.uncompressKey(key);
     return res.send(key);
-});
-
-/**
- *  Ask server for a message to CRAM
- */
-app.post('/challenge', async function (req, res) {
-    let token = req.headers['x-session-token'];
-    if(!token)
-        return res.status(401).send({result: false});
-	let msg = await service.challenge(token);
-	if(msg)
-	    return res.send({msg : msg});
-	else return res.status(401).send({result: false, msg: 'Not authorized'});
 });
 
 app.post('/getHistory', async function (req, res) {
@@ -169,14 +102,14 @@ app.get('/getConfig', async function (req, res) {
 });
 
 /** ERC -> ENQ swap */
-app.post('/swap/erc/enq',
+app.post('/bridge/erc/enq',
     (config.authState ? auth : (req, res, next)=>{next()}),
     validate,
     async function (req, res) {
         let body = req.body;
         logger.info(`Swap ERC->ENQ for pubkey ${body.pubkey}, ETH hash is ${body.hash}`);
         try{
-            let result = await service.swapERC_ENQ(body);
+            let result = await service.bridgeERC_ENQ(body);
             return res.status(200).send({result: result});
         }
         catch (err) {
@@ -186,63 +119,19 @@ app.post('/swap/erc/enq',
 });
 
 /** ENQ -> ERC swap */
-app.post('/swap/enq/erc',
+app.post('/bridge/enq/erc',
     (config.authState ? auth : (req, res, next)=>{next()}),
     validate,
     async function (req, res) {
         let body = req.body;
         logger.info(`Swap ENQ->ERC for pubkey ${req.body.pubkey}`);
-        let result = await service.bridgeERC_ENQ(body);
+        let result = await service.bridgeENQ_ERC(body);
         return res.status(200).send(result);
 });
 
-/** ERC -> BEP swap
-app.post('/swap/erc/bep',
-    (config.authState ? auth : (req, res, next)=>{next()}),
-    validate,
-    async function (req, res) {
-        let body = req.body;
-        logger.info(`Swap ERC->BEP for pubkey ${body.eth_addr}`);
-        try{
-            let result = await service.swapERC_BEP(body);
-            return res.status(200).send({result: result});
-        }
-        catch (e) {
-            logger.error(e);
-            return res.status(200).send({result: false});
-        }
-});
-*/
-/** BEP -> ENQ swap
-app.post('/swap/bep/enq',
-    (config.authState ? auth : (req, res, next)=>{next()}),
-    validate,
-    async function (req, res) {
-        let body = req.body;
-        logger.info(`Swap BEP->ENQ for pubkey ${body.pubkey}, ETH hash is ${body.hash}`);
-        try{
-            let result = await service.swapBEP_ENQ(body);
-            return res.status(200).send({result: result});
-        }
-        catch (err) {
-            logger.error(err);
-            return res.status(200).send({result: false});
-        }
-});
-*/
-/** ENQ -> BEP swap
-app.post('/swap/enq/bep',
-    (config.authState ? auth : (req, res, next)=>{next()}),
-    validate,
-    async function (req, res) {
-        let body = req.body;
-        logger.info(`Swap ENQ->BEP for pubkey ${req.body.pubkey}`);
-        let result = await service.swapENQ_BEP(body);
-        return res.status(200).send(result);
-});
-*/
+
 app.listen(config.port, function () {
-    logger.info(`Wallet is running on port ${config.port}!`);
+    logger.info(`Bridge is running on port ${config.port}!`);
 });
 
 app.use(function(req, res, next){

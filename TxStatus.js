@@ -9,6 +9,7 @@ class TxStatus {
         logger.info("TxStatus started");
         this.db = new DB({
             host: config.dbhost,
+            port: config.dbport,
             user: config.dbuser,
             database: config.dbname,
             password: config.dbpass.toString()
@@ -413,8 +414,8 @@ class TxStatus {
     async cashier_bridge_ERC() {
         let inputs = await this.db.get_success_ercs();
         for (let i = 0; i < inputs.length; i++) {
+            let rec = inputs[i];
             try {
-                let rec = inputs[i];
                 // Additional check
                 let info = await Utils.getTransactionExtInfo(rec.in_hash);
 
@@ -428,15 +429,12 @@ class TxStatus {
 
                         if (token_hash === undefined) {
                             //Create token
-                            let enq_decimals =
-                            let native_token_info = (await enecuum.getTokenInfo(this.config.enq_native_token_hash))[0];
-                            let create_tx = await Utils.CreateToken(keys, info.token, native_token_info);
+                            let create_tx = await Utils.CreateToken(keys, info.token);
 
                             let create_res = await enecuum.sendTransaction(create_tx);
                             if (create_res.err === 0) {
                                 info.token.enq_hash = create_res.result[0].hash;
                                 await this.db.put_bridge_token(info.token);
-                                await this.db.set_hold(rec.recid, 0);
                             }
                         } else {
                             //Mint - Send
@@ -444,7 +442,7 @@ class TxStatus {
 
                             let balance = await enecuum.getTokenBalance(keys.pub, token_hash);
                             let amount = BigInt(info.method.params.find(param => {if(param.name === "amount") return param}).value);
-                            rec.out_addr = info.method.params.find(param => {if(param.name === "enq_address") return param}).value
+                            rec.out_addr = (info.method.params.find(param => {if(param.name === "receiver") return param}).value);
                             if (BigInt(balance) < amount) {
                                 logger.warn('Out of ENQ');
                                 return null;
