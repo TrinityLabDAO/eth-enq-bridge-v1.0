@@ -5,18 +5,18 @@ const logger = require('./logger');
 const ContractParser = require('./contractParser').ContractParser;
 const ERC20_ABI = require("./abi_erc20.json");
 const CONTRACT_ABI = require("./abi_enex.json");
-const CONTRACT_ABI_DEPOSIT = require("./abi_deposit.json");
+//const CONTRACT_ABI_DEPOSIT = require("./abi_deposit.json");
 const web3 = require('web3');
 const abiDecoder = require('abi-decoder');
 
-abiDecoder.addABI(CONTRACT_ABI_DEPOSIT);
+//abiDecoder.addABI(CONTRACT_ABI_DEPOSIT);
 abiDecoder.addABI(CONTRACT_ABI);
 abiDecoder.addABI(ERC20_ABI);
 
 //const web3js = new web3(new web3.providers.HttpProvider(config.eth.RPC));
 let web3js = getWeb3Instance();
 const contract = new web3js.eth.Contract(CONTRACT_ABI, config.eth.tokenAddr);
-const contract_deposit = new web3js.eth.Contract(CONTRACT_ABI_DEPOSIT, config.eth.tokenAddr);
+const contract_deposit = 0;//= new web3js.eth.Contract(CONTRACT_ABI_DEPOSIT, config.eth.tokenAddr);
 // const provider = web3js.currentProvider;
 // provider.on("connect", function () {
 //     logger.info("Infura Websocket Provider connection established!");
@@ -108,6 +108,11 @@ module.exports = {
         let invoice =  web3js.utils.soliditySha3(token, address, amount);
         let hash = web3js.utils.soliditySha3("\x19Ethereum Signed Message:\n32" , {t:"bytes32", v:  invoice});
         let sign = web3js.eth.accounts.sign(invoice, local_prv);
+        return sign;
+    },
+    sign_message : function(msg, prv){
+        let local_prv = '0x'+prv;
+        let sign = web3js.eth.accounts.sign(msg, local_prv);
         return sign;
     },
     verify : function(cpkey, msg, signedMsg){

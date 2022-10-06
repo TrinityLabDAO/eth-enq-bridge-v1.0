@@ -78,6 +78,86 @@ describe("ecdsa signature", function() {
             }
         console.log(JSON.stringify(result));
     });
+    it('sign with web3 Bridge 2', async () => {
+        let dst_address = "0x7219D87299b18d8f4118838E7cB51A7c48fcbcF0";
+        let dst_network = 13;
+        let amount = 1000;
+        let src_hash = "1111111111111111111111111111111111111111111111111111111111111111";
+        let src_address = "02025547a8e82f04feee617a27858a9e081bfde3fee3a57260137c5f686d7e6936";
+        let src_network = 7;
+        let origin_hash = "1111111111111111111111111111111111111111111111111111111111111111";
+        let origin_network = 7;
+        let nonce = 1;
+        let name = "BIT enecuum testnet";
+        let symbol = "BITTESTTOKEN";
+
+        let invoice =  web3js.utils.soliditySha3(dst_address, dst_network, amount, src_hash, src_address, src_network, origin_hash, origin_network, nonce, name, symbol);
+
+        let repiter = 1;
+        let result = [];
+        let print_count = prvs.length;
+        for(let j = 0; j < repiter; j++)
+            for(let i = 0; i<print_count;i++) {
+                let res =  Utils.sign_message(invoice, prvs[i]);
+                result.push(res.signature);
+            }
+        console.log(JSON.stringify(result));
+    });
+    it('sign (s r v) with web3 Bridge 2', async () => {
+        // let dst_address = "0x78B77d5d7A1DFd9a2DA3EE91AFbc205B7eDD1D4d";
+        // let dst_network = 5;
+        // let amount = 1000;
+        // let src_hash = "0x1111111111111111111111111111111111111111111111111111111111111111";
+        // let src_address = "0x02025547a8e82f04feee617a27858a9e081bfde3fee3a57260137c5f686d7e6936";
+        // let src_network = 7;
+        // let origin_hash = "0x1111111111111111111111111111111111111111111111111111111111111111";
+        // let origin_network = 7;
+        // let nonce = 1;
+        // let name = "BIT enecuum testnet";
+        // let symbol = "BITtestTOKEN";
+
+        let dst_address = "0x78B77d5d7A1DFd9a2DA3EE91AFbc205B7eDD1D4d";
+        let dst_network = 5;
+        let amount = 2000000000000000000;
+        let src_hash = "0xd050e000eEF099179D224cCD3964cc4B683383F1";
+        let src_address = "0x78B77d5d7A1DFd9a2DA3EE91AFbc205B7eDD1D4d";
+        let src_network = 777;
+        let origin_hash = "0xd050e000eEF099179D224cCD3964cc4B683383F1";
+        let origin_network = 5;
+        let nonce = 2;
+        let name = " Booster Wrapped Ether";
+        let symbol = "BWETH";
+
+        let invoice =  web3js.utils.soliditySha3(dst_address, dst_network, amount, src_hash, src_address, src_network, origin_hash, origin_network, nonce, name, symbol);
+
+        console.log({invoice});
+        let print_count = 1;//prvs.length;
+        let owner = [];
+        let s = [];
+        let r = [];
+        let v = [];
+        for(let i = 0; i<prvs.length;i++) {
+            let res = privateKeyToAddress(prvs[i]);
+            owner.push(res);
+        }
+        console.log(`owners:`);
+        console.log(JSON.stringify(owner));
+
+        for(let j = 0; j < 1; j++)
+            for(let i = 0; i<print_count;i++) {
+                let res = Utils.sign_message(invoice, prvs[i]);
+                v.push(res.v);
+                r.push(res.r);
+                s.push(res.s);
+            }
+        console.log(`v:`);
+        console.log(JSON.stringify(v));
+        console.log(`r:`);
+        console.log(JSON.stringify(r));
+        console.log(`s:`);
+        console.log(JSON.stringify(s));
+    });
+
     it('sign (s r v) with web3', async () => {
         let prv_1 = "4d7c91407e5954e6b80e2c5f3658363452cf932b3a74fa4703472a7978960302";
         let prv_2 = "1c15507d37b3e02c88cecdd01b818e4bbac9d561c98e39e031d586b6a31484fa"
