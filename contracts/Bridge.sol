@@ -219,15 +219,17 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
             WrapedToken(token_address).mint(ticket.dst_address, ticket.amount);
             emit Mint(token_address, ticket.dst_address, ticket.amount);
         } else { //if(ticket.origin_network == network_id) { // ИНАЧЕ ЕСЛИ *origin_network* РАВНО *contract.network_id*
-            address token = toAddress(abi.encode(ticket.origin_hash));
+            address token = bytesToAddress(ticket.origin_hash);
             require(address(vault) != address(0), "Vault not found");
             vault.withdraw(token, ticket.dst_address, ticket.amount); //  ТО передать_актив(*dst_address*, *amount*, *origin_hash*)
             emit Unlock(ticket.dst_address, ticket.amount);
         }
     }
 
+
     function substring(string memory str, uint startIndex, uint endIndex) internal pure returns (string memory ) {
         bytes memory strBytes = bytes(str);
+        endIndex = endIndex < strBytes.length ? endIndex : strBytes.length;
         bytes memory result = new bytes(endIndex-startIndex);
         for(uint i = startIndex; i < endIndex; i++) {
             result[i-startIndex] = strBytes[i];
@@ -235,8 +237,10 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
         return string(result);
     }
 
-    function toBytes(address a) internal pure returns (bytes memory) {
-        return abi.encode(a);
+    function bytesToAddress(bytes memory bys) internal pure returns (address addr) {
+        assembly {
+            addr := mload(add(bys,20))
+        } 
     }
 
     function toAddress(bytes memory a) internal pure returns (address addr) {
