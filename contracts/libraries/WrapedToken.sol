@@ -1,20 +1,24 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2021 TrinityLabDAO
 pragma solidity 0.8.7;
 
-import "@openzeppelin/contracts/token/erc20/erc20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "../interfaces/IWrapedTokenDeployer.sol";
 
-contract WrapedToken is ERC20 {
-    string public origin;
-    string public origin_hash;
-    uint8 immutable _decimals;
+contract WrapedToken is ERC20, ERC20Burnable, Ownable {
+
+    uint256 public origin;
+    bytes public origin_hash;
 
     constructor(string memory name, string memory symbol) ERC20(name, symbol){
-        (string memory origin_, string memory origin_hash_, uint8 decimals_) = IWrapedTokenDeployer(msg.sender).parameters();
+        (uint256 origin_,  bytes memory origin_hash_) = IWrapedTokenDeployer(msg.sender).parameters();
         origin = origin_;
         origin_hash = origin_hash_;
-        _decimals = decimals_;
     }
 
-    function decimals() public view virtual override returns (uint8) {
-        return _decimals;
+    function mint(address to, uint256 amount) public onlyOwner {
+        _mint(to, amount);
     }
 }

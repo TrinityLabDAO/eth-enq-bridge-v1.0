@@ -532,85 +532,15 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 // File: contracts/interfaces/IWrapedTokenDeployer.sol
 
 
-pragma solidity >=0.5.0;
 
-/// @title An interface for a contract that is capable of deploying Uniswap V3 Pools
-/// @notice A contract that constructs a pool must implement this to pass arguments to the pool
-/// @dev This is used to avoid having constructor arguments in the pool contract, which results in the init code hash
-/// of the pool being constant allowing the CREATE2 address of the pool to be cheaply computed on-chain
-interface IWrapedTokenDeployer {
-    /// @notice Get the parameters to be used in constructing the pool, set transiently during pool creation.
-    /// Returns name
-    /// Returns symbol
-    /// Returns decimals
-    function parameters()
-        external
-        view
-        returns (
-            string memory original,
-            string memory origin_hash,
-            uint8 decimals
-        );
-}
 // File: contracts/libraries/WrapedToken.sol
 
 
-pragma solidity 0.8.7;
 
-
-
-contract WrapedToken is ERC20 {
-    string public origin;
-    string public origin_hash;
-    uint8 immutable _decimals;
-
-    constructor(string memory name, string memory symbol) ERC20(name, symbol){
-        (string memory origin_, string memory origin_hash_, uint8 decimals_) = IWrapedTokenDeployer(msg.sender).parameters();
-        origin = origin_;
-        origin_hash = origin_hash_;
-        _decimals = decimals_;
-    }
-
-    function decimals() public view virtual override returns (uint8) {
-        return _decimals;
-    }
-}
 // File: contracts/libraries/WrapedTokenDeployer.sol
 
 
-pragma solidity >=0.7.6;
 
-
-
-contract WrapedTokenDeployer is IWrapedTokenDeployer {
-    struct Parameters {
-        string origin;
-        string origin_hash;
-        uint8 decimals;
-    }
-
-    /// @inheritdoc IWrapedTokenDeployer
-    Parameters public override parameters;
-
-    /// @dev Deploys a pool with the given parameters by transiently setting the parameters storage slot and then
-    /// clearing it after deploying the pool.
-    /// @param name token name
-    /// @param symbol token symbol
-    /// @param origin chain ID
-    /// @param origin_hash hash in origin chain
-    /// @param decimals token decimals
-    function deploy(
-        string memory name,
-        string memory symbol,
-        string memory origin,
-        string memory origin_hash,
-        uint8 decimals
-    ) internal returns (address token) {
-        parameters = Parameters({origin: origin, origin_hash: origin_hash, decimals: decimals});
-        token = address(new WrapedToken{salt: keccak256(abi.encode(origin, origin_hash, decimals))}(name, symbol));
-        delete parameters;
-    }
-}
 // File: @openzeppelin/contracts/security/ReentrancyGuard.sol
 
 
