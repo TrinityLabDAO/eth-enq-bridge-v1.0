@@ -22,7 +22,6 @@ pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./libraries/WrapedTokenDeployer.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -162,16 +161,19 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
                 "Token balance is too low"
             );
         require(
-                IERC20(hash).allowance(msg.sender, address(this)) >= amount,
-                "Token allowance too low"
+                address(vault) != address(0), 
+                "Vault not found"
+            ); 
+        require(
+                IERC20(hash).allowance(msg.sender, address(vault)) >= amount,
+                "Token allowance to Vault too low"
             );
-        if(minted[hash].origin_hash.length == 0){
+        if(minted[hash].origin_hash.length == 0){             
+            vault.deposit(hash, msg.sender, amount);
             emit Lock(dst_address, dst_network, amount, hash, msg.sender);
-            require(address(vault) != address(0), "Vault not found");
-            IERC20(hash).safeTransferFrom(msg.sender, address(vault), amount);
         }else{
+            vault.burn(hash, msg.sender, amount);
             emit Burn(dst_address, dst_network, amount, hash, msg.sender);
-            ERC20Burnable(hash).burnFrom(msg.sender, amount); 
         }
         
     }

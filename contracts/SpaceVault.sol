@@ -20,9 +20,9 @@
 // SOFTWARE.
 pragma solidity 0.8.7;
 
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-//import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./interfaces/IVault.sol";
@@ -35,6 +35,18 @@ contract SpaceVault is
     ReentrancyGuard
 {
     using SafeERC20 for IERC20;
+
+    event Deposit(
+        address indexed token,
+        address indexed sender,
+        uint256 amount
+    );
+
+    event Burn(
+        address indexed token,
+        address indexed sender,
+        uint256 amount
+    );
 
     event Withdraw(
         address indexed sender,
@@ -50,13 +62,25 @@ contract SpaceVault is
     constructor() {
         governance = msg.sender;
     }
+    
+    function deposit(
+        address token,
+        address from,
+        uint256 amount
+    ) external override nonReentrant onlyBridge {
+        IERC20(token).safeTransferFrom(from, address(this), amount);
+        emit Deposit(from, token, amount);
+    }
 
-    /**
-     * @notice Withdraw token.
-     * @param token - token
-     * @param to - address
-     * @param amount - amount
-     */
+    function burn(
+        address token,
+        address from,
+        uint256 amount
+    ) external override nonReentrant onlyBridge {
+        ERC20Burnable(token).burnFrom(from, amount); 
+        emit Burn(from, token, amount);
+    }
+
     function withdraw(
         address token,
         address to,
