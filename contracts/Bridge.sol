@@ -33,12 +33,8 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
 
     IVault vault;
 
-    mapping(bytes32 => bool) public invoices;
-
     uint24 immutable public network_id;
     
-    mapping(uint256 => uint256) public known_networks;
-
     event Lock(
         bytes dst_address, 
         uint24 dst_network,
@@ -70,15 +66,29 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
     //wrapped_hash - хеш обёрнутого токена
     //origin_network - идентификатор сети происхождения
     //origin_hash - хеш оригинального токена
+    /*
     struct TKN{
         uint256 origin_network;
         bytes origin_hash;
     }
+    */
+    struct TKN{
+        uint256 origin_network;
+        string origin_hash;
+    }
+    
     mapping(address => TKN) public minted; 
-    mapping(bytes => address) getAddressFromOriginHahs;
-    mapping(bytes => mapping(bytes => mapping(uint256 => mapping(address => uint256))))  _transfers;
+    mapping(string => address) getAddressFromOriginHahs;
+    mapping(string => mapping(string => mapping(uint256 => mapping(address => uint256))))  _transfers;
 
-    function get_transfer(bytes memory src_address, bytes memory src_hash, uint256 src_network, address dst_address) 
+    struct NETWORK{
+        bool valid;
+        uint8 decimals;
+    }
+    mapping(uint256 => NETWORK) public known_networks;
+
+    //function get_transfer(bytes memory src_address, bytes memory src_hash, uint256 src_network, address dst_address) 
+    function get_transfer(string memory src_address, string memory src_hash, uint256 src_network, address dst_address) 
     public 
     view 
     returns (uint256) 
@@ -99,10 +109,10 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
         address dst_address;
         uint256 dst_network;
         uint256 amount;
-        bytes src_hash;
-        bytes src_address;
+        string src_hash;
+        string src_address;
         uint256 src_network;
-        bytes origin_hash;
+        string origin_hash;
         uint256 origin_network;
         uint256 nonce;
         string name;
@@ -112,25 +122,25 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
     //@param id - network id
     constructor(uint24 id){
         network_id = id;
+        known_networks[1] = NETWORK({valid:true, decimals:10});
+        known_networks[11] = NETWORK({valid:true, decimals:10});
+        known_networks[17] = NETWORK({valid:true, decimals:2});
+        known_networks[23] = NETWORK({valid:true, decimals:3});
+        known_networks[29] = NETWORK({valid:true, decimals:4});
     }
 
     function set_vault(address _vault) onlyOwner public {
         vault = IVault(_vault);
     }
-
-    function add_network(uint256 id, uint256 decimals) onlyOwner public {
-        known_networks[id] = decimals;
+    
+    function add_network(uint256 id, uint8 decimals_) onlyOwner public {
+        known_networks[id] = NETWORK({valid:true, decimals:decimals_});
     }
 
     function set_threshold(uint24 value) onlyOwner public {
         threshold = value;
     }
 
-    function set_minted(uint256 origin_network, bytes memory origin_hash) internal returns(address addr)  {
-        addr = address(bytes20(keccak256(abi.encodePacked(block.difficulty, block.timestamp))));
-        minted[addr]= TKN(origin_network, origin_hash);
-    }
-    
     function addValidator(address validator) public onlyOwner {
         require(
              validators[validator] == 0, 
@@ -157,32 +167,71 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
     //@param hash - хеш токена в сети отправления
     function lock(bytes memory dst_address, uint24 dst_network, uint256 amount, address hash) public nonReentrant {
         require(
+            known_networks[dst_network].valid,
+            "Unknown dst_network"
+        );
+
+        uint8 src_decimals;
+        uint8 dst_decimals;
+
+        src_decimals = ERC20Burnable(hash).decimals();
+        dst_decimals = known_networks[dst_network].decimals;
+        
+        if (dst_decimals < src_decimals)
+        require(
+            amount % (10 ** (src_decimals - dst_decimals)) == 0,
+            "Fraction too low"
+        );
+        
+        require(
                 amount <= IERC20(hash).balanceOf(msg.sender), 
                 "Token balance is too low"
             );
+
         require(
                 address(vault) != address(0), 
                 "Vault not found"
-            ); 
+            );
+
         require(
                 IERC20(hash).allowance(msg.sender, address(vault)) >= amount,
                 "Token allowance to Vault too low"
             );
-        if(minted[hash].origin_hash.length == 0){             
+
+        string memory t = toAsciiString(hash);
+        lock_map[t] = hash;
+
+        if(bytes(minted[hash].origin_hash).length == 0){
+            //IERC20(hash).safeTransferFrom(msg.sender, address(this), amount);
             vault.deposit(hash, msg.sender, amount);
             emit Lock(dst_address, dst_network, amount, hash, msg.sender);
         }else{
+            //ERC20Burnable(hash).burnFrom(msg.sender, amount);
             vault.burn(hash, msg.sender, amount);
             emit Burn(dst_address, dst_network, amount, hash, msg.sender);
         }
         
     }
 
-    //
-    //Claim
-    //
-    //@param ticket - структура TICKET
-    //@param signatures - массив структуры SIGNATURES
+    function toAsciiString(address x) internal pure returns (string memory) {
+        bytes memory s = new bytes(40);
+        for (uint i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint(uint160(x)) / (2**(8*(19 - i)))));
+            bytes1 hi = bytes1(uint8(b) / 16);
+            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
+            s[2*i] = char(hi);
+            s[2*i+1] = char(lo);            
+        }
+        return string(s);
+    }
+
+    function char(bytes1 b) internal pure returns (bytes1 c) {
+        if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
+        else return bytes1(uint8(b) + 0x57);
+    }
+
+    mapping(string => address) public lock_map;
+
     function claim(TICKET memory ticket, SIGNATURES[] memory signatures) public nonReentrant {
         require(
             ticket.dst_network == network_id,
@@ -192,14 +241,13 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
             ticket.nonce == (_transfers[ticket.src_address][ticket.src_hash][ticket.src_network][ticket.dst_address] + 1),
             "Invalid nonce"
         );
-        _transfers[ticket.src_address][ticket.src_hash][ticket.src_network][ticket.dst_address] += 1;
 
         bytes32 data_hash = ethMessageHash(ethTicketHash(ticket));
         require(
             verify(data_hash, signatures), 
             "Invalid signature"
         );
-        
+
         if((ticket.origin_network == ticket.src_network) || ((ticket.origin_network != ticket.src_network) && (ticket.origin_network != network_id))) { //EСЛИ *origin_network* РАВНО *src_network*
             address token_address = getAddressFromOriginHahs[ticket.origin_hash];
             // ТО   ЕСЛИ {*origin_hash*, *origin_network*} СОДЕРЖИТСЯ В {*contract.minted.origin.hash*, *contract.minted.origin.network*}
@@ -208,45 +256,23 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
             //     ИНАЧЕ 
             if(token_address == address(0x0)){
                 //         *new_hash* = создать_токен(*amount*)
+                bytes memory bytes_hash = bytes(ticket.origin_hash);
                 token_address = deploy(
-                    string(abi.encodePacked("Wraped ", ticket.name)), 
-                    string(abi.encodePacked("WR", substring(ticket.symbol, 0, 8))), 
+                    string(abi.encodePacked(ticket.name)), 
+                    string(abi.encodePacked(ticket.symbol)), 
                     ticket.origin_network, 
-                    ticket.origin_hash);
+                    bytes_hash);
                 minted[token_address] = TKN({origin_network: ticket.origin_network, origin_hash: ticket.origin_hash});//         ВСТАВИТЬ {*new_hash*, *origin_hash*, *origin_network*} В *minted*
                 getAddressFromOriginHahs[ticket.origin_hash] = token_address;
-        
             }
             // передать_актив(*dst_address*, *amount*, *new_hash*)
             WrapedToken(token_address).mint(ticket.dst_address, ticket.amount);
             emit Mint(token_address, ticket.dst_address, ticket.amount);
         } else { //if(ticket.origin_network == network_id) { // ИНАЧЕ ЕСЛИ *origin_network* РАВНО *contract.network_id*
-            address token = bytesToAddress(ticket.origin_hash);
-            require(address(vault) != address(0), "Vault not found");
-            vault.withdraw(token, ticket.dst_address, ticket.amount); //  ТО передать_актив(*dst_address*, *amount*, *origin_hash*)
+            vault.withdraw(lock_map[ticket.origin_hash], ticket.dst_address, ticket.amount); //  ТО передать_актив(*dst_address*, *amount*, *origin_hash*)
             emit Unlock(ticket.dst_address, ticket.amount);
         }
-    }
-
-
-    function substring(string memory str, uint startIndex, uint endIndex) internal pure returns (string memory ) {
-        bytes memory strBytes = bytes(str);
-        endIndex = endIndex < strBytes.length ? endIndex : strBytes.length;
-        bytes memory result = new bytes(endIndex-startIndex);
-        for(uint i = startIndex; i < endIndex; i++) {
-            result[i-startIndex] = strBytes[i];
-        }
-        return string(result);
-    }
-
-    function bytesToAddress(bytes memory bys) internal pure returns (address addr) {
-        assembly {
-            addr := mload(add(bys,20))
-        } 
-    }
-
-    function toAddress(bytes memory a) internal pure returns (address addr) {
-        addr = abi.decode(a,(address));
+        _transfers[ticket.src_address][ticket.src_hash][ticket.src_network][ticket.dst_address] += 1;
     }
 
     /**
@@ -260,22 +286,16 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
 
     function ethTicketHash(TICKET memory ticket) internal pure returns (bytes32)  {
         return keccak256(abi.encodePacked(
-                ticket.dst_address,
-                ticket.dst_network,
-                ticket.amount,
-                ticket.src_hash,
-                ticket.src_address,
-                ticket.src_network,
-                ticket.origin_hash,
-                ticket.origin_network,
-                ticket.nonce,
-                ticket.name,
-                ticket.symbol
-            )
-        );
-    }
- 
-    function ethInvoceHash(bytes32 enqTxHash, address token, address recipient, uint amount) private pure returns (bytes32)  {
-        return keccak256(abi.encodePacked(enqTxHash, token, recipient,  amount));
+            ticket.amount,
+            ticket.dst_address,
+            ticket.dst_network,
+            ticket.name,
+            ticket.nonce,
+            ticket.origin_hash,
+            ticket.origin_network,
+            ticket.src_address,
+            ticket.src_hash,
+            ticket.src_network,
+            ticket.symbol));
     }
 }
