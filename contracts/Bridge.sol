@@ -24,14 +24,15 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./libraries/WrapedTokenDeployer.sol";
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./libraries/ECDSA.sol";
 import "./interfaces/IVault.sol";
 
-contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
+contract SPACE_BRIDGE is WrapedTokenDeployer, ECDSA, ReentrancyGuard{
     using SafeERC20 for IERC20;
 
-    IVault vault;
+    IVault public vault;
+    address public governance;
+    address public pendingGovernance;
 
     uint24 immutable public network_id;
     
@@ -122,26 +123,28 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
     //@param id - network id
     constructor(uint24 id){
         network_id = id;
+//TODO: remove
         known_networks[1] = NETWORK({valid:true, decimals:10});
         known_networks[11] = NETWORK({valid:true, decimals:10});
         known_networks[17] = NETWORK({valid:true, decimals:2});
         known_networks[23] = NETWORK({valid:true, decimals:3});
         known_networks[29] = NETWORK({valid:true, decimals:4});
+//TODO END
     }
 
-    function set_vault(address _vault) onlyOwner public {
+    function set_vault(address _vault) onlyGovernance public {
         vault = IVault(_vault);
     }
     
-    function add_network(uint256 id, uint8 decimals_) onlyOwner public {
+    function add_network(uint256 id, uint8 decimals_) onlyGovernance public {
         known_networks[id] = NETWORK({valid:true, decimals:decimals_});
     }
 
-    function set_threshold(uint24 value) onlyOwner public {
+    function set_threshold(uint24 value) onlyGovernance public {
         threshold = value;
     }
 
-    function addValidator(address validator) public onlyOwner {
+    function addValidator(address validator) public onlyGovernance {
         require(
              validators[validator] == 0, 
             "Owner exist"
@@ -150,7 +153,7 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
         nextValidatorId++;
     }
     
-    function removeValidator(address validator) public onlyOwner {
+    function removeValidator(address validator) public onlyGovernance {
         require(
              validators[validator] != 0, 
             "dosnt exist owner"
@@ -202,11 +205,9 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
         lock_map[t] = hash;
 
         if(bytes(minted[hash].origin_hash).length == 0){
-            //IERC20(hash).safeTransferFrom(msg.sender, address(this), amount);
             vault.deposit(hash, msg.sender, amount);
             emit Lock(dst_address, dst_network, amount, hash, msg.sender);
         }else{
-            //ERC20Burnable(hash).burnFrom(msg.sender, amount);
             vault.burn(hash, msg.sender, amount);
             emit Burn(dst_address, dst_network, amount, hash, msg.sender);
         }
@@ -297,5 +298,28 @@ contract SPACE_BRIDGE is WrapedTokenDeployer, Ownable, ECDSA, ReentrancyGuard{
             ticket.src_hash,
             ticket.src_network,
             ticket.symbol));
+    }
+
+    
+    /**
+     * @notice Governance address is not updated until the new governance
+     * address has called `acceptGovernance()` to accept this responsibility.
+     */
+    function setGovernance(address _governance) external onlyGovernance {
+        pendingGovernance = _governance;
+    }
+
+    /**
+     * @notice `setGovernance()` should be called by the existing governance
+     * address prior to calling this function.
+     */
+    function acceptGovernance() external {
+        require(msg.sender == pendingGovernance, "pendingGovernance");
+        governance = msg.sender;
+    }
+
+    modifier onlyGovernance {
+        require(msg.sender == governance, "governance");
+        _;
     }
 }
