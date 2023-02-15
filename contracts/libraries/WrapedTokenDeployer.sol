@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: Unlicense
 pragma solidity >=0.7.6;
 
-import "../interface/IWrapedTokenDeployer.sol";
+import "../interfaces/IWrapedTokenDeployer.sol";
+import "./WrapedToken.sol";
 
 contract WrapedTokenDeployer is IWrapedTokenDeployer {
     struct Parameters {
-        string origin;
-        string origin_hash;
-        uint8 decimals;
+        uint256 origin;
+        bytes origin_hash;
     }
 
     /// @inheritdoc IWrapedTokenDeployer
@@ -18,16 +19,14 @@ contract WrapedTokenDeployer is IWrapedTokenDeployer {
     /// @param symbol token symbol
     /// @param origin chain ID
     /// @param origin_hash hash in origin chain
-    /// @param decimals token decimals
-    function deploy(
+    function _deploy(
         string memory name,
         string memory symbol,
-        string memory origin,
-        string memory origin_hash,
-        uint8 decimals
+        uint256 origin,
+        bytes memory origin_hash
     ) internal returns (address token) {
-        parameters = Parameters({origin: origin, origin_hash: origin_hash, decimals: decimals});
-        token = address(new WrapedToken{salt: keccak256(abi.encode(origin, origin_hash, decimals))}(name, symbol));
+        parameters = Parameters({origin: origin, origin_hash: origin_hash});
+        token = address(new WrapedToken{salt: keccak256(abi.encode(origin, origin_hash))}(name, symbol));
         delete parameters;
     }
 }

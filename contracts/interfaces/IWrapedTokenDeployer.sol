@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Unlicense
 pragma solidity >=0.5.0;
 
 /// @title An interface for a contract that is capable of deploying Uniswap V3 Pools
@@ -11,10 +12,8 @@ interface IWrapedTokenDeployer {
     /// Returns decimals
     function parameters()
         external
-        view
         returns (
-            string memory original,
-            string memory origin_hash,
-            uint8 decimals
+            uint256 origin,
+            bytes memory origin_hash
         );
 }

@@ -18,7 +18,7 @@ contract WrapedToken is ERC20, ERC20Burnable, Ownable {
         origin_hash = origin_hash_;
     }
 
-    function mint(address to, uint256 amount) public onlyOwner {
+    function mint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
     }
 }

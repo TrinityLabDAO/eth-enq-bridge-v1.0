@@ -24,15 +24,20 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-
+import "./libraries/WrapedTokenDeployer.sol";
 import "./interfaces/IVault.sol";
+import "./security/OnlyGovernance.sol";
+import "./security/OnlyBridge.sol";
+
 
 /**
  * @title Space Vault
  */
-contract SpaceVault is
-    IVault,
-    ReentrancyGuard
+contract SpaceVault is  IVault,
+                        WrapedTokenDeployer,
+                        ReentrancyGuard,
+                        OnlyGovernance, 
+                        OnlyBridge
 {
     using SafeERC20 for IERC20;
 
@@ -55,46 +60,68 @@ contract SpaceVault is
         uint256 amount
     );
 
-    address public bridge;
-    address public governance;
-    address public pendingGovernance;
+    event Mint(
+        address token_address,
+        address dst_address,
+        uint256 amount
+    );
 
-    constructor() {
-        governance = msg.sender;
-    }
+    address public bridge;
     
     function deposit(
         address token,
         address from,
         uint256 amount
-    ) external override nonReentrant onlyBridge {
+    ) nonReentrant onlyBridge external override {
         IERC20(token).safeTransferFrom(from, address(this), amount);
         emit Deposit(from, token, amount);
-    }
-
-    function burn(
-        address token,
-        address from,
-        uint256 amount
-    ) external override nonReentrant onlyBridge {
-        ERC20Burnable(token).burnFrom(from, amount); 
-        emit Burn(from, token, amount);
     }
 
     function withdraw(
         address token,
         address to,
         uint256 amount
-    ) external override nonReentrant onlyBridge {
+    ) nonReentrant onlyBridge external override {
         require(IERC20(token).balanceOf(address(this)) > amount, "Vault token balance to low");
         IERC20(token).safeTransfer(to, amount);
         emit Withdraw(msg.sender, token, to, amount);
     }
 
+    function deploy(
+        string memory name,
+        string memory symbol,
+        uint256 origin,
+        bytes memory origin_hash
+    ) nonReentrant onlyBridge external override returns(address){
+        return _deploy(name, symbol, origin, origin_hash);
+    }
+
+    function mint(
+        address token_address,
+        address to,
+        uint256 amount
+    ) nonReentrant onlyBridge external override {
+        WrapedToken(token_address).mint(to, amount);
+        emit Mint(token_address, to, amount);
+    }
+
+    function burn(
+        address token,
+        address from,
+        uint256 amount
+    ) nonReentrant onlyBridge external override {
+        ERC20Burnable(token).burnFrom(from, amount); 
+        emit Burn(from, token, amount);
+    }
+
+    function tokenTransferOwnership(address token, address new_vault) nonReentrant onlyGovernance external {
+        WrapedToken(token).transferOwnership(new_vault);
+    }
+
     /**
      * @notice Balance of token in vault.
      */
-    function getBalance(IERC20 token) public view returns (uint256) {
+    function getBalance(IERC20 token) external view returns (uint256) {
         return token.balanceOf(address(this));
     }
 
@@ -105,43 +132,7 @@ contract SpaceVault is
         address token,
         uint256 amount,
         address to
-    ) external onlyGovernance {
+    ) onlyGovernance external {
         IERC20(token).safeTransfer(to, amount);
-    }
-
-    /**
-     * @notice Used to set the bridge contract that determines the position
-     * ranges and calls rebalance(). Must be called after this vault is
-     * deployed.
-     */
-    function setBridge(address _bridge) external onlyGovernance {
-        bridge = _bridge;
-    }
-
-    /**
-     * @notice Governance address is not updated until the new governance
-     * address has called `acceptGovernance()` to accept this responsibility.
-     */
-    function setGovernance(address _governance) external onlyGovernance {
-        pendingGovernance = _governance;
-    }
-
-    /**
-     * @notice `setGovernance()` should be called by the existing governance
-     * address prior to calling this function.
-     */
-    function acceptGovernance() external {
-        require(msg.sender == pendingGovernance, "pendingGovernance");
-        governance = msg.sender;
-    }
-
-    modifier onlyGovernance {
-        require(msg.sender == governance, "governance");
-        _;
-    }
-
-    modifier onlyBridge {
-        require(msg.sender == bridge, "bridge");
-        _;
     }
 }
