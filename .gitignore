@@ -62,4 +62,8 @@ typings/
 
 .idea
 
-test/
+artifacts/
+
+old/
+
+cache/

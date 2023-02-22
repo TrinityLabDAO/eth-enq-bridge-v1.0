@@ -14,7 +14,7 @@ contract SpaceStorage is OnlyGovernance, OnlyBridge {
 
     mapping(uint256 => Storage.NETWORK) public known_networks;
 
-    mapping(address => Storage.TKN)  public minted; 
+    mapping(address => Storage.TKN) _minted;
 
     mapping(string => address) public getAddressFromOriginHahs;
 
@@ -48,7 +48,7 @@ contract SpaceStorage is OnlyGovernance, OnlyBridge {
     }
 
     function addMinted(address token_address, string memory origin_hash, Storage.TKN memory tkn) onlyBridge external {
-        minted[token_address] = tkn;
+        _minted[token_address] = tkn;
         getAddressFromOriginHahs[origin_hash] = token_address;
     }
 
@@ -58,5 +58,9 @@ contract SpaceStorage is OnlyGovernance, OnlyBridge {
 
     function addLockMap(string memory t, address token_hash) onlyBridge external {
         lock_map[t] = token_hash;
+    }
+
+    function minted(address key) external view returns (Storage.TKN memory){
+        return _minted[key];
     }
 }

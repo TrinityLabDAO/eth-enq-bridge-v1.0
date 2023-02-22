@@ -3,19 +3,19 @@ const crypto = require('crypto');
 const config = require("./config.json");
 const logger = require('./logger');
 const ContractParser = require('./contractParser').ContractParser;
-const ERC20_ABI = require("./abi_erc20.json");
-const CONTRACT_ABI = require("./abi_enex.json");
+//const ERC20_ABI = require("./abi_erc20.json");
+//const CONTRACT_ABI = require("./abi_enex.json");
 //const CONTRACT_ABI_DEPOSIT = require("./abi_deposit.json");
 const web3 = require('web3');
 const abiDecoder = require('abi-decoder');
 
 //abiDecoder.addABI(CONTRACT_ABI_DEPOSIT);
-abiDecoder.addABI(CONTRACT_ABI);
-abiDecoder.addABI(ERC20_ABI);
+//abiDecoder.addABI(CONTRACT_ABI);
+//abiDecoder.addABI(ERC20_ABI);
 
 //const web3js = new web3(new web3.providers.HttpProvider(config.eth.RPC));
 let web3js = getWeb3Instance();
-const contract = new web3js.eth.Contract(CONTRACT_ABI, config.eth.tokenAddr);
+//const contract = new web3js.eth.Contract(CONTRACT_ABI, config.eth.tokenAddr);
 const contract_deposit = 0;//= new web3js.eth.Contract(CONTRACT_ABI_DEPOSIT, config.eth.tokenAddr);
 // const provider = web3js.currentProvider;
 // provider.on("connect", function () {
@@ -68,7 +68,7 @@ async function getBalance(addr){
     let balanceEther = await web3js.eth.getBalance(addr);
     return web3js.utils.fromWei(balanceEther);
 }
-
+/*
 function getContract(){
     return contract;
 }
@@ -76,7 +76,7 @@ function getContract(){
 function getDeposContract(){
     return contract_deposit;
 }
-
+*/
 
 module.exports = {
     sign : function(prvkey, msg){
@@ -215,11 +215,6 @@ module.exports = {
             return apiRequest(options)
         }
     },
-
-    getSwapLimit : async function(){
-        // return this.apiRequest.get('swaplimit');
-        return config.eth.minSwapLimit;
-    },
     getTransactionDecodeInfo : async function(txHash){
         const trx = await web3js.eth.getTransaction(txHash);
         trx.method = abiDecoder.decodeMethod(trx.input);
@@ -307,9 +302,9 @@ module.exports = {
             return config.eth.cashierGasPrice;
         return (gas > config.eth.cashierGasPriceLimit) ? config.eth.cashierGasPriceLimit : gas;
     },
-    getBalance : getBalance,
-    getContract : getContract,
-    getDeposContract : getDeposContract,
+    //getBalance : getBalance,
+    //getContract : getContract,
+    //getDeposContract : getDeposContract,
     createTokenTransaction : async function(toAddress, amount, data){
         return new Promise(async function(resolve, reject) {
             try {

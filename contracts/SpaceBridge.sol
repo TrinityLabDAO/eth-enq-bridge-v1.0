@@ -146,7 +146,7 @@ contract SpaceBridge is ReentrancyGuard,
             vault.burn(hash, msg.sender, amount);
             emit Burn(dst_address, dst_network, amount, hash, msg.sender);
         }
-        
+
     }
 
     //

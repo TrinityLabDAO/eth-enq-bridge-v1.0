@@ -1,32 +1,35 @@
 {
-  "name": "enecuum-swap",
+  "name": "space-bridge",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha --timeout 10000"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TrinityLabDAO/eth-enq-bridge-v1.0.git"
+  },
+  "author": "Mikhail Vasilev",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TrinityLabDAO/eth-enq-bridge-v1.0/issues"
+  },
+  "homepage": "https://github.com/TrinityLabDAO/eth-enq-bridge-v1.0#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.1",
+    "hardhat": "^2.12.7"
+  },
   "dependencies": {
-    "@binance-chain/javascript-sdk": "^2.14.4",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
+    "@openzeppelin/contracts": "^4.8.1",
     "abi-decoder": "^2.4.0",
-    "body-parser": "^1.18.3",
-    "chai": "^4.2.0",
-    "cors": "^2.8.5",
-    "crypto": "^1.0.1",
-    "ejs": "^2.6.2",
-    "ethereumjs-tx": "^2.1.0",
-    "express": "^4.16.4",
-    "express-session": "^1.16.2",
-    "jsrsasign": "^8.0.12",
-    "mocha": "^6.2.0",
-    "mysql": "^2.17.1",
-    "request": "^2.88.0",
-    "staticify": "^3.3.4",
-    "web3": "^1.0.0-beta.55",
-    "winston": "^3.2.1",
-    "ws": "^7.1.0"
+    "ethereum-private-key-to-address": "^0.0.7",
+    "ethereumjs-tx": "^2.1.2",
+    "jsrsasign": "^10.6.1",
+    "mocha": "^10.2.0",
+    "openzeppelin-solidity": "^2.2.0",
+    "web3": "^1.8.2",
+    "winston": "^3.8.2"
   }
 }

@@ -17,8 +17,7 @@ interface ISpaceStorage {
     function known_networks(uint256 key) external view returns (Storage.NETWORK memory);
 
     // Function signature for mapping
-    function minted(address key) external view returns (Storage.TKN memory); 
-
+    function minted(address key) external view returns (Storage.TKN memory);
     // Function signature for mapping
     function getAddressFromOriginHahs(string memory key) external view returns (address);
 
@@ -62,4 +61,7 @@ interface ISpaceStorage {
         string memory t, 
         address token_hash
     ) external;
+
+
+
 }
