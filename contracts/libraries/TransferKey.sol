@@ -7,8 +7,9 @@ library TransferKey {
         string memory src_address,
         string memory src_hash,
         uint256 src_network,
-        address dst_address
+        string memory dst_address,
+        uint256 dst_network
     ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(src_address, src_hash, src_network, dst_address));
+        return keccak256(abi.encodePacked(src_address, src_hash, src_network, dst_address, dst_network));
     }
 }

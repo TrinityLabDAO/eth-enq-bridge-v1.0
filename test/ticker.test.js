@@ -253,7 +253,7 @@ describe("Test contracts", function () {
     //check allowance, if needed set approve
     //lock token in Bridge contacr
     //
-    async function lock(from_address, token_address, hardhatBridge, vault_address, dist_network_id, amount) {
+    async function lock(from_address, token_address, hardhatBridge, vault_address, dist_network_id, amount, nonce) {
         const Token = await ethers.getContractFactory("Token");
         const hardhatToken = await Token.attach(token_address);
         if(await hardhatToken.allowance(from_address, vault_address) < amount) {
@@ -261,7 +261,7 @@ describe("Test contracts", function () {
             await hardhatToken.approve(vault_address, amount);
         }
 
-        await hardhatBridge.lock(from_address, dist_network_id, amount, hardhatToken.address);
+        await hardhatBridge.lock(from_address, dist_network_id, amount, hardhatToken.address, nonce);
     }
 
     //
@@ -279,12 +279,13 @@ describe("Test contracts", function () {
         let dist_network_id = 1;
         let amount = BigInt(10e6);
 
+        let nonce = 1;
         //check error allowance
         await expect(
-            hardhatBridge.lock(owner.address, dist_network_id, amount, hardhatToken.address)
+            hardhatBridge.lock(owner.address, dist_network_id, amount, hardhatToken.address, nonce)
         ).to.be.revertedWith("Token allowance to Vault too low");
 
-        await lock(owner.address, hardhatToken.address, hardhatBridge, hardhatVault.address, dist_network_id, amount)
+        await lock(owner.address, hardhatToken.address, hardhatBridge, hardhatVault.address, dist_network_id, amount, nonce);
 
         expect(
             await hardhatToken.balanceOf(owner.address)
@@ -368,9 +369,9 @@ describe("Test contracts", function () {
         expect(
             await hardhatWRToken.totalSupply()
         ).to.equal(amount);
-
+        let nonce = 1;
         let burn_amount = amount / 2n;
-        await lock(owner.address, wr_token_addr, hardhatBridge, hardhatVault.address, dist_network_id, burn_amount);
+        await lock(owner.address, wr_token_addr, hardhatBridge, hardhatVault.address, dist_network_id, burn_amount, nonce);
         /*await hardhatWRToken.approve(hardhatVault.address, burn_amount);
 
         await hardhatBridge.lock(owner.address, dist_network_id, burn_amount, hardhatWRToken.address.toLowerCase());
@@ -381,4 +382,14 @@ describe("Test contracts", function () {
     });
 
 
+    it("transfer ownership Vault", async function(){
+
+    })
+
+    it("transfer ownership Storage", async function(){
+
+    })
+    it("transfer ownership Bridge", async function(){
+
+    })
 });

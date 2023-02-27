@@ -80,8 +80,8 @@ contract SpaceBridge is ReentrancyGuard,
         spaceStorage = ISpaceStorage(_storage);
     }
 
-    function getTransfer(string memory src_address, string memory src_hash, uint256 src_network, address dst_address) external view returns (uint256) {   
-        bytes32 id = TransferKey.compute(src_address, src_hash, src_network, dst_address); 
+    function getTransfer(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external view returns (uint256) {   
+        bytes32 id = TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network); 
         return spaceStorage.transfers(id);    
     }
 
@@ -108,10 +108,15 @@ contract SpaceBridge is ReentrancyGuard,
     //@param dst_network - идентификатор сети назначения
     //@param amount - количество
     //@param hash - хеш токена в сети отправления
-    function lock(bytes memory dst_address, uint24 dst_network, uint256 amount, address hash) checkSetup nonReentrant external {
+    function lock(bytes memory dst_address, uint24 dst_network, uint256 amount, address hash, uint256 nonce) checkSetup nonReentrant external {
         require(
             spaceStorage.known_networks(dst_network).valid,
             "Unknown dst_network"
+        );
+
+        require(
+            nonce == (spaceStorage.transfers(TransferKey.compute(Converter.toAsciiString(msg.sender), Converter.toAsciiString(hash), network_id, string(abi.encodePacked(dst_address)), dst_network)) + 1),
+            "Invalid nonce"
         );
 
         uint8 src_decimals;
@@ -147,6 +152,8 @@ contract SpaceBridge is ReentrancyGuard,
             emit Burn(dst_address, dst_network, amount, hash, msg.sender);
         }
 
+        spaceStorage.incrementNonce(TransferKey.compute(Converter.toAsciiString(msg.sender), Converter.toAsciiString(hash), network_id, string(abi.encodePacked(dst_address)), dst_network));
+
     }
 
     //
@@ -158,7 +165,7 @@ contract SpaceBridge is ReentrancyGuard,
             "Invalid destination network id"
         );
         require(
-            ticket.nonce == (spaceStorage.transfers(TransferKey.compute(ticket.src_address, ticket.src_hash, ticket.src_network, ticket.dst_address)) + 1),
+            ticket.nonce == (spaceStorage.transfers(TransferKey.compute(ticket.src_address, ticket.src_hash, ticket.src_network, Converter.toAsciiString(ticket.dst_address), ticket.dst_network)) + 1),
             "Invalid nonce"
         );
         bytes32 data_hash = Converter.ethMessageHash(
@@ -199,6 +206,6 @@ contract SpaceBridge is ReentrancyGuard,
             vault.withdraw(spaceStorage.lock_map(ticket.origin_hash), ticket.dst_address, ticket.amount); //  ТО передать_актив(*dst_address*, *amount*, *origin_hash*)
             emit Unlock(ticket.dst_address, ticket.amount);
         }
-        spaceStorage.incrementNonce(TransferKey.compute(ticket.src_address, ticket.src_hash, ticket.src_network, ticket.dst_address));
+        spaceStorage.incrementNonce(TransferKey.compute(ticket.src_address, ticket.src_hash, ticket.src_network, Converter.toAsciiString(ticket.dst_address), ticket.dst_network));
     }
 }
