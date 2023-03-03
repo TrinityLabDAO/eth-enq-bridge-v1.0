@@ -45,7 +45,8 @@ contract SpaceBridge is ReentrancyGuard,
         uint24 dst_network,
         uint256 amount, 
         address hash,
-        address src_address
+        address src_address,
+        uint256 nonce
     );
 
     event Burn(
@@ -53,7 +54,8 @@ contract SpaceBridge is ReentrancyGuard,
         uint24 dst_network,
         uint256 amount, 
         address hash,
-        address src_address
+        address src_address,
+        uint256 nonce
     );
 
     event Unlock(
@@ -80,8 +82,8 @@ contract SpaceBridge is ReentrancyGuard,
         spaceStorage = ISpaceStorage(_storage);
     }
 
-    function getTransfer(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external view returns (uint256) {   
-        bytes32 id = TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network); 
+    function getTransfer(address src_address, address src_hash, uint256 src_network, bytes memory dst_address, uint256 dst_network) external view returns (uint256) {   
+        bytes32 id = TransferKey.compute(Converter.toAsciiString(src_address), Converter.toAsciiString(src_hash), src_network, string(abi.encodePacked(dst_address)), dst_network); 
         return spaceStorage.transfers(id);    
     }
 
@@ -146,10 +148,10 @@ contract SpaceBridge is ReentrancyGuard,
 
         if(bytes(spaceStorage.minted(hash).origin_hash).length == 0){
             vault.deposit(hash, msg.sender, amount);
-            emit Lock(dst_address, dst_network, amount, hash, msg.sender);
+            emit Lock(dst_address, dst_network, amount, hash, msg.sender, nonce);
         }else{
             vault.burn(hash, msg.sender, amount);
-            emit Burn(dst_address, dst_network, amount, hash, msg.sender);
+            emit Burn(dst_address, dst_network, amount, hash, msg.sender, nonce);
         }
 
         spaceStorage.incrementNonce(TransferKey.compute(Converter.toAsciiString(msg.sender), Converter.toAsciiString(hash), network_id, string(abi.encodePacked(dst_address)), dst_network));
