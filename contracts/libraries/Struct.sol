@@ -11,6 +11,7 @@ library Storage {
     struct TKN{
         uint256 origin_network;
         string origin_hash;
+        uint8 origin_decimals;
     }
 }
 
@@ -25,6 +26,7 @@ library Bridge {
     // origin_hash - хеш токена в сети происхождения
     // origin_network - идентификатор сети происхождения
     // nonce - порядковый номер перевода
+    // origin_decimals - децималс оригинального токена
     struct TICKET{
         address dst_address;
         uint256 dst_network;
@@ -37,5 +39,6 @@ library Bridge {
         uint256 nonce;
         string name;
         string symbol;
+        uint8 origin_decimals;
     }
 }

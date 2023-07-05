@@ -16,7 +16,7 @@ contract SpaceStorage is OnlyGovernance, OnlyBridge {
 
     mapping(address => Storage.TKN) _minted;
 
-    mapping(string => address) public getAddressFromOriginHahs;
+    mapping(string => address) public getAddressFromOriginHash;
 
     mapping(bytes32 => uint256) public transfers;
     

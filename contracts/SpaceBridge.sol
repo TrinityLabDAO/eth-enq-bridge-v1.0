@@ -82,9 +82,9 @@ contract SpaceBridge is ReentrancyGuard,
         spaceStorage = ISpaceStorage(_storage);
     }
 
-    function getTransfer(address src_address, address src_hash, uint256 src_network, bytes memory dst_address, uint256 dst_network) external view returns (uint256) {   
-        bytes32 id = TransferKey.compute(Converter.toAsciiString(src_address), Converter.toAsciiString(src_hash), src_network, string(abi.encodePacked(dst_address)), dst_network); 
-        return spaceStorage.transfers(id);    
+    function getTransfer(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external view returns (uint256) {
+        bytes32 id = TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network);
+        return spaceStorage.transfers(id);
     }
 
     //
@@ -178,12 +178,8 @@ contract SpaceBridge is ReentrancyGuard,
             "Invalid signature"
         );
 
-        if((ticket.origin_network == ticket.src_network) || ((ticket.origin_network != ticket.src_network) && (ticket.origin_network != network_id))) { //EСЛИ *origin_network* РАВНО *src_network*
+        if((ticket.origin_network == ticket.src_network) || ((ticket.origin_network != ticket.src_network) && (ticket.origin_network != network_id))) {
             address token_address = spaceStorage.getAddressFromOriginHahs(ticket.origin_hash);
-            // ТО   ЕСЛИ {*origin_hash*, *origin_network*} СОДЕРЖИТСЯ В {*contract.minted.origin.hash*, *contract.minted.origin.network*}
-            //     TO сминтить_токен(*amount*, *contract.minted.wrapped_hash*)
-            //         передать_актив(*dst_address*, *amount*, *contract.minted.wrapped_hash*)
-            //     ИНАЧЕ 
             if(token_address == address(0x0)){
                 //         *new_hash* = создать_токен(*amount*)
                 bytes memory bytes_hash = bytes(ticket.origin_hash);
@@ -191,21 +187,22 @@ contract SpaceBridge is ReentrancyGuard,
                     string(abi.encodePacked(ticket.name)), 
                     string(abi.encodePacked(ticket.symbol)), 
                     ticket.origin_network, 
-                    bytes_hash);
+                    bytes_hash,
+                    ticket.origin_decimals);
                 spaceStorage.addMinted(
                     token_address, 
                     ticket.origin_hash, 
                     Storage.TKN({
                         origin_network: ticket.origin_network, 
-                        origin_hash: ticket.origin_hash}
-                    )
-                );//ВСТАВИТЬ {*new_hash*, *origin_hash*, *origin_network*} В *minted*
+                        origin_hash: ticket.origin_hash,
+                        origin_decimals: ticket.origin_decimals})
+                );
             }
-            // передать_актив(*new_hash*, *dst_address*, *amount*)
+            // передать_актив
             vault.mint(token_address, ticket.dst_address, ticket.amount);
             emit Mint(token_address, ticket.dst_address, ticket.amount);
-        } else { //if(ticket.origin_network == network_id) { // ИНАЧЕ ЕСЛИ *origin_network* РАВНО *contract.network_id*
-            vault.withdraw(spaceStorage.lock_map(ticket.origin_hash), ticket.dst_address, ticket.amount); //  ТО передать_актив(*dst_address*, *amount*, *origin_hash*)
+        } else {
+            vault.withdraw(spaceStorage.lock_map(ticket.origin_hash), ticket.dst_address, ticket.amount);
             emit Unlock(ticket.dst_address, ticket.amount);
         }
         spaceStorage.incrementNonce(TransferKey.compute(ticket.src_address, ticket.src_hash, ticket.src_network, Converter.toAsciiString(ticket.dst_address), ticket.dst_network));

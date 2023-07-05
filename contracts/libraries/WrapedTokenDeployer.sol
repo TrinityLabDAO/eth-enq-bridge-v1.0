@@ -8,6 +8,7 @@ contract WrapedTokenDeployer is IWrapedTokenDeployer {
     struct Parameters {
         uint256 origin;
         bytes origin_hash;
+        uint8 origin_decimals;
     }
 
     /// @inheritdoc IWrapedTokenDeployer
@@ -23,10 +24,11 @@ contract WrapedTokenDeployer is IWrapedTokenDeployer {
         string memory name,
         string memory symbol,
         uint256 origin,
-        bytes memory origin_hash
+        bytes memory origin_hash,
+        uint8 origin_decimals
     ) internal returns (address token) {
-        parameters = Parameters({origin: origin, origin_hash: origin_hash});
-        token = address(new WrapedToken{salt: keccak256(abi.encode(origin, origin_hash))}(name, symbol));
+        parameters = Parameters({origin: origin, origin_hash: origin_hash, origin_decimals: origin_decimals});
+        token = address(new WrapedToken{salt: keccak256(abi.encode(origin, origin_hash, origin_decimals))}(name, symbol));
         delete parameters;
     }
 }

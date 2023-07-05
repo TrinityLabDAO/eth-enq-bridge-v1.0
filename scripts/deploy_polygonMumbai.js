@@ -23,8 +23,11 @@ async function main() {
     await hardhatStorage.addNetwork(networkId, decimals);
     await hardhatStorage.addNetwork(5, 18); //goerli
     await hardhatStorage.addNetwork(97, 18); //bsc
+    await hardhatStorage.addNetwork(23, 3); //test
+    await hardhatStorage.addNetwork(29, 4); //test 2
 
     await hardhatStorage.addValidator("0x1F04445E17AA4B64cc9390fd2f76474A5e9B72c1");
+    await hardhatStorage.addValidator("0xf784C9bca8BbDD93A195aeCdBa23472f89B1E7d6");
 
     await hardhatStorage.setThreshold(1);
 

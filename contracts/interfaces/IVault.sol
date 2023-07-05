@@ -19,7 +19,8 @@ interface IVault {
         string memory name,
         string memory symbol,
         uint256 origin,
-        bytes memory origin_hash
+        bytes memory origin_hash,
+        uint8 origin_decimals
     ) external returns(address);
 
     function mint(

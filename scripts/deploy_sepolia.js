@@ -4,6 +4,7 @@ async function main() {
     console.log("Deploying contracts with the account:", deployer.address);
 
     console.log("Account balance:", (await deployer.getBalance()).toString());
+
     const SpaceVault = await ethers.getContractFactory("SpaceVault");
     const SpaceStorage = await ethers.getContractFactory("SpaceStorage");
     const SpaceBridge = await ethers.getContractFactory("SpaceBridge");
@@ -12,7 +13,7 @@ async function main() {
     // mined.
     const hardhatVault = await SpaceVault.deploy();
     const hardhatStorage = await SpaceStorage.deploy();
-    const hardhatBridge = await SpaceBridge.deploy(97);
+    const hardhatBridge = await SpaceBridge.deploy(11155111);
 
     await hardhatVault.setBridge(hardhatBridge.address);
     await hardhatStorage.setBridge(hardhatBridge.address);
@@ -22,6 +23,7 @@ async function main() {
     await hardhatStorage.addNetwork(networkId, decimals);
     await hardhatStorage.addNetwork(80001, 18); //mumbai
     await hardhatStorage.addNetwork(5, 18); //goerli
+    await hardhatStorage.addNetwork(97, 18); //bsc
     await hardhatStorage.addNetwork(23, 3); //test
     await hardhatStorage.addNetwork(29, 4); //test 2
 

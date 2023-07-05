@@ -14,6 +14,7 @@ interface IWrapedTokenDeployer {
         external
         returns (
             uint256 origin,
-            bytes memory origin_hash
+            bytes memory origin_hash,
+            uint8 origin_decimals
         );
 }
