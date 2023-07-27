@@ -82,9 +82,13 @@ contract SpaceBridge is ReentrancyGuard,
         spaceStorage = ISpaceStorage(_storage);
     }
 
-    function getTransfer(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external view returns (uint256) {
+    function getChannelNonce(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external view returns (uint256) {
         bytes32 id = TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network);
         return spaceStorage.transfers(id);
+    }
+
+    function getChannelId(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external pure returns (bytes32) {
+        return TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network);
     }
 
     //
