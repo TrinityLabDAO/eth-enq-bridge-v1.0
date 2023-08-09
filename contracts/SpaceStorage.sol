@@ -7,7 +7,6 @@ import {Storage} from "./libraries/Struct.sol";
 
 contract SpaceStorage is OnlyGovernance, OnlyBridge {
 
-    // количество подписей, необходимых для перевода активов
     uint24 public threshold;
     mapping(address => bool) public validators;
 

@@ -16,17 +16,7 @@ library Storage {
 }
 
 library Bridge {
-    
-    // dst_address - адрес получателя в сети назначения
-    // dst_network - идентификатор сети назначения
-    // amount - количество
-    // src_hash - хеш токена в сети отправления
-    // src_address - адрес отправителя в сети отправления
-    // src_network - идентификатор сети отправления
-    // origin_hash - хеш токена в сети происхождения
-    // origin_network - идентификатор сети происхождения
-    // nonce - порядковый номер перевода
-    // origin_decimals - децималс оригинального токена
+
     struct TICKET{
         address dst_address;
         uint256 dst_network;

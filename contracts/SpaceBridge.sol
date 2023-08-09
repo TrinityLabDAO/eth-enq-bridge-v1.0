@@ -110,10 +110,6 @@ contract SpaceBridge is ReentrancyGuard,
     //
     // LOCK
     //
-    //@param dst_address - адрес получателя в сети назначения
-    //@param dst_network - идентификатор сети назначения
-    //@param amount - количество
-    //@param hash - хеш токена в сети отправления
     function lock(bytes memory dst_address, uint24 dst_network, uint256 amount, address hash, uint256 nonce) checkSetup nonReentrant external {
         require(
             spaceStorage.known_networks(dst_network).valid,
@@ -183,9 +179,8 @@ contract SpaceBridge is ReentrancyGuard,
         );
 
         if((ticket.origin_network == ticket.src_network) || ((ticket.origin_network != ticket.src_network) && (ticket.origin_network != network_id))) {
-            address token_address = spaceStorage.getAddressFromOriginHahs(ticket.origin_hash);
+            address token_address = spaceStorage.getAddressFromOriginHash(ticket.origin_hash);
             if(token_address == address(0x0)){
-                //         *new_hash* = создать_токен(*amount*)
                 bytes memory bytes_hash = bytes(ticket.origin_hash);
                 token_address = vault.deploy(
                     string(abi.encodePacked(ticket.name)), 
@@ -202,7 +197,6 @@ contract SpaceBridge is ReentrancyGuard,
                         origin_decimals: ticket.origin_decimals})
                 );
             }
-            // передать_актив
             vault.mint(token_address, ticket.dst_address, ticket.amount);
             emit Mint(token_address, ticket.dst_address, ticket.amount);
         } else {
