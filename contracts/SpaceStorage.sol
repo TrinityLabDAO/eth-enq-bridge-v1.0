@@ -7,37 +7,46 @@ import {Storage} from "./libraries/Struct.sol";
 
 contract SpaceStorage is OnlyGovernance, OnlyBridge {
 
-    uint nextValidatorId = 1;
-    // количество подписей, необходимых для перевода активов
     uint24 public threshold;
-    mapping(address => uint) public validators;
+    mapping(address => bool) public validators;
 
     mapping(uint256 => Storage.NETWORK) public known_networks;
 
     mapping(address => Storage.TKN) _minted;
 
-    mapping(string => address) public getAddressFromOriginHahs;
+    mapping(string => address) public getAddressFromOriginHash;
 
     mapping(bytes32 => uint256) public transfers;
     
     mapping(string => address) public lock_map;
 
     function addNetwork(uint256 id, uint8 decimals_) onlyGovernance external {
+        require(
+            !known_networks[id].valid,
+            "Network exist"
+        );
         known_networks[id] = Storage.NETWORK({valid:true, decimals:decimals_});
+    }
+
+    function removeNetwork(uint256 id) onlyGovernance external {
+        require(
+            known_networks[id].valid,
+            "dosnt exist network"
+        );
+        delete known_networks[id];
     }
 
     function addValidator(address validator) onlyGovernance public {
         require(
-            validators[validator] == 0, 
+            !validators[validator],
             "Owner exist"
         );
-        validators[validator] = nextValidatorId;
-        nextValidatorId++;
+        validators[validator] = true;
     }
     
     function removeValidator(address validator) onlyGovernance external {
         require(
-            validators[validator] != 0, 
+            validators[validator],
             "dosnt exist owner"
         );
         delete validators[validator];
@@ -49,7 +58,7 @@ contract SpaceStorage is OnlyGovernance, OnlyBridge {
 
     function addMinted(address token_address, string memory origin_hash, Storage.TKN memory tkn) onlyBridge external {
         _minted[token_address] = tkn;
-        getAddressFromOriginHahs[origin_hash] = token_address;
+        getAddressFromOriginHash[origin_hash] = token_address;
     }
 
     function incrementNonce(bytes32 key) onlyBridge external {

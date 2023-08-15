@@ -18,6 +18,7 @@
   "homepage": "https://github.com/TrinityLabDAO/eth-enq-bridge-v1.0#readme",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.1",
+    "@nomiclabs/hardhat-etherscan": "^3.1.6",
     "hardhat": "^2.12.7"
   },
   "dependencies": {

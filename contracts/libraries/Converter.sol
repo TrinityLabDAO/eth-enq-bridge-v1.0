@@ -21,6 +21,7 @@ library Converter {
             ticket.dst_network,
             ticket.name,
             ticket.nonce,
+            ticket.origin_decimals,
             ticket.origin_hash,
             ticket.origin_network,
             ticket.src_address,

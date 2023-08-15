@@ -21,7 +21,7 @@ library ECDSA {
         //4 - v
         for (uint i=0; i<signatures.length; i++){
            // bytes32 
-            if(_storage.validators(ecrecover(hash, signatures[i].v, signatures[i].r, signatures[i].s)) != 0){
+            if(_storage.validators(ecrecover(hash, signatures[i].v, signatures[i].r, signatures[i].s))){
                 confirmations++;
             }
         }

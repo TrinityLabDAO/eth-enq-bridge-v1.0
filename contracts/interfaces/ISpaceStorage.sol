@@ -11,7 +11,7 @@ interface ISpaceStorage {
     function threshold() external view returns (uint24);
 
     // Function signature for mapping
-    function validators(address key) external view returns (uint);
+    function validators(address key) external view returns (bool);
 
     // Function signature for mapping
     function known_networks(uint256 key) external view returns (Storage.NETWORK memory);
@@ -19,7 +19,7 @@ interface ISpaceStorage {
     // Function signature for mapping
     function minted(address key) external view returns (Storage.TKN memory);
     // Function signature for mapping
-    function getAddressFromOriginHahs(string memory key) external view returns (address);
+    function getAddressFromOriginHash(string memory key) external view returns (address);
 
     // Function signature for mapping
     function transfers(bytes32 key) external view returns (uint256);
@@ -33,6 +33,10 @@ interface ISpaceStorage {
     function addNetwork(
         uint256, 
         uint8
+    ) external;
+
+    function removeNetwork(
+        uint256 id
     ) external;
 
     function addValidator(
@@ -61,7 +65,4 @@ interface ISpaceStorage {
         string memory t, 
         address token_hash
     ) external;
-
-
-
 }

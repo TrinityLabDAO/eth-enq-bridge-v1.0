@@ -45,7 +45,8 @@ contract SpaceBridge is ReentrancyGuard,
         uint24 dst_network,
         uint256 amount, 
         address hash,
-        address src_address
+        address src_address,
+        uint256 nonce
     );
 
     event Burn(
@@ -53,7 +54,8 @@ contract SpaceBridge is ReentrancyGuard,
         uint24 dst_network,
         uint256 amount, 
         address hash,
-        address src_address
+        address src_address,
+        uint256 nonce
     );
 
     event Unlock(
@@ -80,9 +82,13 @@ contract SpaceBridge is ReentrancyGuard,
         spaceStorage = ISpaceStorage(_storage);
     }
 
-    function getTransfer(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external view returns (uint256) {   
-        bytes32 id = TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network); 
-        return spaceStorage.transfers(id);    
+    function getChannelNonce(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external view returns (uint256) {
+        bytes32 id = TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network);
+        return spaceStorage.transfers(id);
+    }
+
+    function getChannelId(string memory src_address, string memory src_hash, uint256 src_network, string memory dst_address, uint256 dst_network) external pure returns (bytes32) {
+        return TransferKey.compute(src_address, src_hash, src_network, dst_address, dst_network);
     }
 
     //
@@ -104,10 +110,6 @@ contract SpaceBridge is ReentrancyGuard,
     //
     // LOCK
     //
-    //@param dst_address - адрес получателя в сети назначения
-    //@param dst_network - идентификатор сети назначения
-    //@param amount - количество
-    //@param hash - хеш токена в сети отправления
     function lock(bytes memory dst_address, uint24 dst_network, uint256 amount, address hash, uint256 nonce) checkSetup nonReentrant external {
         require(
             spaceStorage.known_networks(dst_network).valid,
@@ -146,10 +148,10 @@ contract SpaceBridge is ReentrancyGuard,
 
         if(bytes(spaceStorage.minted(hash).origin_hash).length == 0){
             vault.deposit(hash, msg.sender, amount);
-            emit Lock(dst_address, dst_network, amount, hash, msg.sender);
+            emit Lock(dst_address, dst_network, amount, hash, msg.sender, nonce);
         }else{
             vault.burn(hash, msg.sender, amount);
-            emit Burn(dst_address, dst_network, amount, hash, msg.sender);
+            emit Burn(dst_address, dst_network, amount, hash, msg.sender, nonce);
         }
 
         spaceStorage.incrementNonce(TransferKey.compute(Converter.toAsciiString(msg.sender), Converter.toAsciiString(hash), network_id, string(abi.encodePacked(dst_address)), dst_network));
@@ -176,34 +178,29 @@ contract SpaceBridge is ReentrancyGuard,
             "Invalid signature"
         );
 
-        if((ticket.origin_network == ticket.src_network) || ((ticket.origin_network != ticket.src_network) && (ticket.origin_network != network_id))) { //EСЛИ *origin_network* РАВНО *src_network*
-            address token_address = spaceStorage.getAddressFromOriginHahs(ticket.origin_hash);
-            // ТО   ЕСЛИ {*origin_hash*, *origin_network*} СОДЕРЖИТСЯ В {*contract.minted.origin.hash*, *contract.minted.origin.network*}
-            //     TO сминтить_токен(*amount*, *contract.minted.wrapped_hash*)
-            //         передать_актив(*dst_address*, *amount*, *contract.minted.wrapped_hash*)
-            //     ИНАЧЕ 
+        if((ticket.origin_network == ticket.src_network) || ((ticket.origin_network != ticket.src_network) && (ticket.origin_network != network_id))) {
+            address token_address = spaceStorage.getAddressFromOriginHash(ticket.origin_hash);
             if(token_address == address(0x0)){
-                //         *new_hash* = создать_токен(*amount*)
                 bytes memory bytes_hash = bytes(ticket.origin_hash);
                 token_address = vault.deploy(
                     string(abi.encodePacked(ticket.name)), 
                     string(abi.encodePacked(ticket.symbol)), 
                     ticket.origin_network, 
-                    bytes_hash);
+                    bytes_hash,
+                    ticket.origin_decimals);
                 spaceStorage.addMinted(
                     token_address, 
                     ticket.origin_hash, 
                     Storage.TKN({
                         origin_network: ticket.origin_network, 
-                        origin_hash: ticket.origin_hash}
-                    )
-                );//ВСТАВИТЬ {*new_hash*, *origin_hash*, *origin_network*} В *minted*
+                        origin_hash: ticket.origin_hash,
+                        origin_decimals: ticket.origin_decimals})
+                );
             }
-            // передать_актив(*new_hash*, *dst_address*, *amount*)
             vault.mint(token_address, ticket.dst_address, ticket.amount);
             emit Mint(token_address, ticket.dst_address, ticket.amount);
-        } else { //if(ticket.origin_network == network_id) { // ИНАЧЕ ЕСЛИ *origin_network* РАВНО *contract.network_id*
-            vault.withdraw(spaceStorage.lock_map(ticket.origin_hash), ticket.dst_address, ticket.amount); //  ТО передать_актив(*dst_address*, *amount*, *origin_hash*)
+        } else {
+            vault.withdraw(spaceStorage.lock_map(ticket.origin_hash), ticket.dst_address, ticket.amount);
             emit Unlock(ticket.dst_address, ticket.amount);
         }
         spaceStorage.incrementNonce(TransferKey.compute(ticket.src_address, ticket.src_hash, ticket.src_network, Converter.toAsciiString(ticket.dst_address), ticket.dst_network));
